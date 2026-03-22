@@ -16,27 +16,42 @@ export const auth = firebase.auth();
 export const db = firebase.firestore();
 export const rtdb = firebase.database();
 
-// Disable persistence to avoid conflicts (temporary fix)
-// Enable offline persistence with error handling
-db.enablePersistence({ synchronizeTabs: true })
-    .catch((err) => {
-        if (err.code === 'failed-precondition') {
-            console.warn('Multiple tabs open, persistence disabled');
-        } else if (err.code === 'unimplemented') {
-            console.warn('Browser doesn\'t support persistence');
-        }
+// Fix: Use modern persistence method
+try {
+    // Enable offline persistence with modern approach
+    db.settings({
+        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
     });
+    
+    // Enable persistence with better error handling
+    db.enablePersistence({ synchronizeTabs: true })
+        .catch((err) => {
+            if (err.code === 'failed-precondition') {
+                console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+            } else if (err.code === 'unimplemented') {
+                console.warn('The current browser does not support persistence');
+            } else {
+                console.warn('Persistence error:', err);
+            }
+        });
+} catch (error) {
+    console.warn('Persistence setup failed:', error);
+}
 
-// Initialize Realtime Database with default data if empty (with error handling)
+// Initialize Realtime Database with default data
 const initializeDatabase = async () => {
     try {
+        // Check if user is authenticated before trying to write
+        const user = auth.currentUser;
+        if (!user) return;
+        
         const networkStatusRef = rtdb.ref('networkStatus');
         const status = await networkStatusRef.get();
         if (!status.exists()) {
             await networkStatusRef.set({
                 healthScore: 98,
                 healthStatus: 'Excellent',
-                lastUpdated: Date.now()
+                lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
         }
     } catch (error) {
@@ -50,7 +65,8 @@ const initializeDatabase = async () => {
             await metricsRef.set({
                 bandwidth: [],
                 latency: [],
-                packetLoss: []
+                packetLoss: [],
+                lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
         }
     } catch (error) {
@@ -62,5 +78,14 @@ const initializeDatabase = async () => {
 auth.onAuthStateChanged((user) => {
     if (user) {
         initializeDatabase();
+    }
+});
+
+// Add connection monitoring
+rtdb.ref('.info/connected').on('value', (snap) => {
+    if (snap.val() === true) {
+        console.log('Connected to Firebase Realtime Database');
+    } else {
+        console.log('Disconnected from Firebase Realtime Database');
     }
 });

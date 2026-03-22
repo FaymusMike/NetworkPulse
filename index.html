@@ -410,5 +410,22 @@
     
     <!-- Custom Scripts -->
     <script type="module" src="js/app.js"></script>
+
+    <!-- Ensure all dependencies are loaded -->
+    <script>
+        // Check if Firebase is loaded
+        if (typeof firebase === 'undefined') {
+            console.error('Firebase failed to load');
+            alert('Failed to load Firebase. Please check your internet connection.');
+        }
+        
+        // Handle service worker registration error gracefully
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => {
+                console.log('ServiceWorker registration failed: ', err);
+                // Don't show error to user - it's not critical
+            });
+        }
+    </script>
 </body>
 </html>

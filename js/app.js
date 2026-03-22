@@ -528,24 +528,18 @@ class App {
     }
 
     setupWebSocketConnection() {
-        // Setup WebSocket for real-time updates (fallback if Firebase Realtime DB has issues)
-        if ('WebSocket' in window) {
-            this.ws = new WebSocket('wss://echo.websocket.org');
-            
-            this.ws.onopen = () => {
-                console.log('WebSocket connection established');
-                this.ws.send(JSON.stringify({ type: 'subscribe', channel: 'network-updates' }));
-            };
-            
-            this.ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                this.handleWebSocketMessage(data);
-            };
-            
-            this.ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
-        }
+        // Setup WebSocket for real-time updates (optional - use Firebase Realtime DB instead)
+        // Disabled WebSocket to avoid errors - using Firebase Realtime DB is more reliable
+        console.log('Using Firebase Realtime DB for real-time updates');
+        
+        // Optional: Add a custom WebSocket server if needed
+        // For now, we'll rely on Firebase
+        this.ws = null;
+    }
+
+    handleWebSocketMessage(data) {
+        // Only called if WebSocket is used
+        console.log('WebSocket message received:', data);
     }
 
     handleWebSocketMessage(data) {

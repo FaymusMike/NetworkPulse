@@ -85,31 +85,43 @@ class AuthManager {
             // Check if user already exists before attempting signup
             try {
                 const signInMethods = await auth.fetchSignInMethodsForEmail(email);
-                if (signInMethods.length > 0) {
+                if (signInMethods && signInMethods.length > 0) {
                     this.showToast('An account already exists with this email. Please login instead.', 'warning');
                     return null;
                 }
             } catch (error) {
                 console.log('Error checking existing user:', error);
+                // Continue with signup - let Firebase handle it
             }
             
             const result = await auth.createUserWithEmailAndPassword(email, password);
-            await result.user.updateProfile({ displayName: name });
             
-            await db.collection('users').doc(result.user.uid).set({
-                name: name,
-                email: email,
-                role: role,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            if (result.user) {
+                await result.user.updateProfile({ displayName: name });
+                
+                // Create user document in Firestore
+                await db.collection('users').doc(result.user.uid).set({
+                    name: name,
+                    email: email,
+                    role: role,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
             
             this.showToast('Account created successfully! Welcome to NetworkPulse!', 'success');
             return result;
         } catch (error) {
             console.error('Signup error:', error);
-            const errorMessage = this.getSignupErrorMessage(error.code);
-            this.showToast(errorMessage, 'error');
+            
+            // Handle specific Firebase errors
+            if (error.code === 'auth/email-already-in-use') {
+                this.showToast('This email is already registered. Please login instead.', 'warning');
+            } else if (error.code === 'auth/network-request-failed') {
+                this.showToast('Network error. Please check your internet connection.', 'error');
+            } else {
+                this.showToast(this.getSignupErrorMessage(error.code), 'error');
+            }
             throw error;
         }
     }
