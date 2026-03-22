@@ -158,9 +158,24 @@ class AuthManager {
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
         
-        if (authContainer) authContainer.style.display = 'flex';
+        // Only show auth container if it's hidden
+        if (authContainer && authContainer.style.display !== 'flex') {
+            authContainer.style.display = 'flex';
+        }
         if (appContainer) appContainer.style.display = 'none';
         if (loadingOverlay) loadingOverlay.style.display = 'none';
+        
+        // Reset forms to default state
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        if (loginForm) loginForm.classList.add('active');
+        if (signupForm) signupForm.classList.remove('active');
+        
+        // Reset auth tabs
+        const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+        const signupTab = document.querySelector('.auth-tab[data-tab="signup"]');
+        if (loginTab) loginTab.classList.add('active');
+        if (signupTab) signupTab.classList.remove('active');
     }
 
     showToast(message, type) {

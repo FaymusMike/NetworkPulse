@@ -1,4 +1,4 @@
-// sw.js - Fixed service worker that ignores extension requests
+// sw.js - Complete fixed version
 const CACHE_NAME = 'networkpulse-v1';
 const urlsToCache = [
     '/',
@@ -16,18 +16,25 @@ self.addEventListener('install', (event) => {
     console.log('Service Worker installing');
     self.skipWaiting();
     
-    // Only cache if we have valid URLs
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            // Filter out chrome-extension URLs
-            const validUrls = urlsToCache.filter(url => 
-                !url.startsWith('chrome-extension://') && 
-                !url.startsWith('moz-extension://')
-            );
-            return cache.addAll(validUrls).catch(err => {
-                console.log('Cache addAll error:', err);
-                // Continue even if caching fails - not critical
+            // Filter out any chrome-extension or invalid URLs
+            const validUrls = urlsToCache.filter(url => {
+                return url && 
+                       typeof url === 'string' && 
+                       !url.startsWith('chrome-extension://') && 
+                       !url.startsWith('moz-extension://') &&
+                       !url.startsWith('data:') &&
+                       !url.startsWith('blob:');
             });
+            
+            if (validUrls.length > 0) {
+                return cache.addAll(validUrls).catch(err => {
+                    console.log('Cache addAll error:', err);
+                    return Promise.resolve();
+                });
+            }
+            return Promise.resolve();
         })
     );
 });
@@ -38,12 +45,13 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(clients.claim());
 });
 
-// Fetch event with error handling for chrome extensions
+// Fetch event with comprehensive error handling
 self.addEventListener('fetch', (event) => {
     const requestUrl = event.request.url;
     
-    // Skip chrome-extension and moz-extension requests
-    if (requestUrl.startsWith('chrome-extension://') || 
+    // Skip non-http requests and extension requests
+    if (!requestUrl.startsWith('http') || 
+        requestUrl.startsWith('chrome-extension://') || 
         requestUrl.startsWith('moz-extension://') ||
         requestUrl.startsWith('data:') ||
         requestUrl.startsWith('blob:')) {
@@ -58,8 +66,8 @@ self.addEventListener('fetch', (event) => {
                 }
                 return fetch(event.request)
                     .then((response) => {
-                        // Don't cache non-successful responses
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
+                        // Don't cache non-successful responses or non-GET requests
+                        if (!response || response.status !== 200 || response.type !== 'basic' || event.request.method !== 'GET') {
                             return response;
                         }
                         
@@ -68,15 +76,17 @@ self.addEventListener('fetch', (event) => {
                         caches.open(CACHE_NAME)
                             .then((cache) => {
                                 cache.put(event.request, responseToCache).catch(err => {
-                                    // Ignore caching errors for extensions
-                                    if (!requestUrl.includes('chrome-extension')) {
-                                        console.log('Cache put error:', err);
-                                    }
+                                    // Silently fail - not critical
+                                    console.debug('Cache put failed for:', event.request.url);
                                 });
                             })
-                            .catch(err => console.log('Cache open error:', err));
+                            .catch(err => console.debug('Cache open failed'));
                         
                         return response;
+                    })
+                    .catch(err => {
+                        console.debug('Fetch failed:', event.request.url);
+                        return new Response('Network error', { status: 408, statusText: 'Network Error' });
                     });
             })
     );

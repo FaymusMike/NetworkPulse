@@ -426,27 +426,37 @@
                 // Don't show error to user - it's not critical
             });
         }
-    </script>
 
-    <script>
-        // Prevent service worker from trying to cache extension URLs
+        // Prevent service worker errors from showing in console
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(err => {
-                console.log('Service worker registration skipped:', err.message);
+            navigator.serviceWorker.register('/sw.js').catch(() => {
+                // Silently fail - not critical
             });
         }
         
         // Suppress Firebase persistence warnings
-        const originalWarn = console.warn;
+        const originalConsoleWarn = console.warn;
         console.warn = function(...args) {
-            if (args[0] && args[0].includes('enableIndexedDbPersistence will be deprecated')) {
-                return;
+            if (args[0] && typeof args[0] === 'string') {
+                if (args[0].includes('enableIndexedDbPersistence will be deprecated') ||
+                    args[0].includes('enableMultiTabIndexedDbPersistence will be deprecated')) {
+                    return;
+                }
             }
-            if (args[0] && args[0].includes('enableMultiTabIndexedDbPersistence will be deprecated')) {
-                return;
-            }
-            originalWarn.apply(console, args);
+            originalConsoleWarn.apply(console, args);
         };
+        
+        // Ensure auth container is visible on page load
+        window.addEventListener('load', () => {
+            const authContainer = document.getElementById('auth-container');
+            const appContainer = document.getElementById('app-container');
+            const user = firebase.auth().currentUser;
+            
+            if (!user) {
+                if (authContainer) authContainer.style.display = 'flex';
+                if (appContainer) appContainer.style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
