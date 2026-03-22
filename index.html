@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>NetworkPulse - AI-Driven Network Configuration & Monitoring Platform</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dark-mode.css">
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loader">
+            <div class="network-pulse"></div>
+            <p>Initializing Network Platform...</p>
+        </div>
+    </div>
+
+    <!-- Auth Container -->
+    <div id="auth-container" class="auth-container">
+        <div class="auth-wrapper">
+            <div class="auth-card glass-effect">
+                <div class="auth-header">
+                    <div class="logo-container">
+                        <i class="fas fa-network-wired"></i>
+                        <h2>NetworkPulse</h2>
+                    </div>
+                    <p class="tagline">AI-Driven Network Intelligence Platform</p>
+                </div>
+                
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">Login</button>
+                    <button class="auth-tab" data-tab="signup">Sign Up</button>
+                </div>
+                
+                <!-- Login Form -->
+                <form id="login-form" class="auth-form active">
+                    <div class="input-group-custom">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="login-email" placeholder="Email Address" required>
+                    </div>
+                    <div class="input-group-custom">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="login-password" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Login</button>
+                    <div class="divider">OR</div>
+                    <button type="button" id="google-login" class="btn-google">
+                        <i class="fab fa-google"></i> Continue with Google
+                    </button>
+                </form>
+                
+                <!-- Signup Form -->
+                <form id="signup-form" class="auth-form">
+                    <div class="input-group-custom">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="signup-name" placeholder="Full Name" required>
+                    </div>
+                    <div class="input-group-custom">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="signup-email" placeholder="Email Address" required>
+                    </div>
+                    <div class="input-group-custom">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="signup-password" placeholder="Password" required>
+                    </div>
+                    <select id="signup-role" class="form-select-custom">
+                        <option value="viewer">Viewer</option>
+                        <option value="network-engineer">Network Engineer</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <button type="submit" class="btn-primary">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" style="display: none;">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-network-wired"></i>
+                    <span>NetworkPulse</span>
+                </div>
+                <button id="theme-toggle" class="theme-toggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+            
+            <div class="user-info">
+                <div class="user-avatar" id="user-avatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="user-details">
+                    <h6 id="user-name">User Name</h6>
+                    <span id="user-role" class="user-role-badge">Role</span>
+                </div>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item active" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li class="nav-item" data-page="topology">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>Network Topology</span>
+                </li>
+                <li class="nav-item" data-page="devices">
+                    <i class="fas fa-server"></i>
+                    <span>Device Management</span>
+                </li>
+                <li class="nav-item" data-page="monitoring">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Real-Time Monitoring</span>
+                </li>
+                <li class="nav-item" data-page="ai-assistant">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Assistant</span>
+                </li>
+                <li class="nav-item" data-page="network-intel">
+                    <i class="fas fa-globe"></i>
+                    <span>Network Intelligence</span>
+                </li>
+                <li class="nav-item" data-page="security">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Security Insights</span>
+                </li>
+                <li class="nav-item" data-page="reports">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Reports</span>
+                </li>
+            </ul>
+            
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <button id="mobile-menu-toggle" class="mobile-menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="header-widgets">
+                    <div class="notification-bell" id="notification-bell">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notification-count">0</span>
+                    </div>
+                    <div class="connection-status" id="connection-status">
+                        <i class="fas fa-wifi"></i>
+                        <span>Online</span>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Page Content -->
+            <div id="page-content" class="page-content">
+                <!-- Dashboard Page -->
+                <div id="dashboard-page" class="page active">
+                    <div class="page-header">
+                        <h1>Dashboard</h1>
+                        <p>Network Overview & Statistics</p>
+                    </div>
+                    
+                    <div class="widgets-grid" id="dashboard-widgets">
+                        <div class="widget glass-effect">
+                            <div class="widget-header">
+                                <i class="fas fa-microchip"></i>
+                                <h3>Active Devices</h3>
+                            </div>
+                            <div class="widget-content">
+                                <div class="stat-number" id="active-devices-count">0</div>
+                                <div class="stat-change positive">+12% from last week</div>
+                            </div>
+                        </div>
+                        
+                        <div class="widget glass-effect">
+                            <div class="widget-header">
+                                <i class="fas fa-heartbeat"></i>
+                                <h3>Network Health</h3>
+                            </div>
+                            <div class="widget-content">
+                                <div class="health-score" id="network-health">98%</div>
+                                <div class="health-status" id="health-status">Excellent</div>
+                            </div>
+                        </div>
+                        
+                        <div class="widget glass-effect">
+                            <div class="widget-header">
+                                <i class="fas fa-chart-bar"></i>
+                                <h3>Traffic Overview</h3>
+                            </div>
+                            <div class="widget-content">
+                                <canvas id="traffic-chart" width="300" height="150"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="widget glass-effect">
+                            <div class="widget-header">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <h3>Active Alerts</h3>
+                            </div>
+                            <div class="widget-content">
+                                <div class="alert-list" id="alert-list">
+                                    <div class="alert-item info">No critical alerts</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Topology Page -->
+                <div id="topology-page" class="page">
+                    <div class="page-header">
+                        <h1>Network Topology</h1>
+                        <p>Interactive Network Visualization</p>
+                    </div>
+                    <div id="topology-container" class="topology-container glass-effect"></div>
+                </div>
+                
+                <!-- Devices Page -->
+                <div id="devices-page" class="page">
+                    <div class="page-header">
+                        <h1>Device Management</h1>
+                        <button id="add-device-btn" class="btn-primary btn-sm">
+                            <i class="fas fa-plus"></i> Add Device
+                        </button>
+                    </div>
+                    <div id="devices-table-container" class="table-container glass-effect"></div>
+                </div>
+                
+                <!-- Monitoring Page -->
+                <div id="monitoring-page" class="page">
+                    <div class="page-header">
+                        <h1>Real-Time Monitoring</h1>
+                        <p>Live Network Metrics</p>
+                    </div>
+                    <div class="monitoring-grid">
+                        <div class="widget glass-effect">
+                            <h3>Bandwidth Usage</h3>
+                            <canvas id="bandwidth-chart"></canvas>
+                        </div>
+                        <div class="widget glass-effect">
+                            <h3>Latency</h3>
+                            <canvas id="latency-chart"></canvas>
+                        </div>
+                        <div class="widget glass-effect">
+                            <h3>Packet Loss</h3>
+                            <canvas id="packet-loss-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Assistant Page -->
+                <div id="ai-assistant-page" class="page">
+                    <div class="page-header">
+                        <h1>AI Network Assistant</h1>
+                        <p>Powered by Advanced AI</p>
+                    </div>
+                    <div class="chat-container glass-effect">
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message ai-message">
+                                <div class="message-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="message-content">
+                                    Hello! I'm your AI Network Assistant. I can help you with topology optimization, configuration issues, and troubleshooting. How can I assist you today?
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-input-container">
+                            <textarea id="chat-input" placeholder="Ask me anything about your network..." rows="1"></textarea>
+                            <button id="send-message-btn" class="btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Network Intelligence Page -->
+                <div id="network-intel-page" class="page">
+                    <div class="page-header">
+                        <h1>Network Intelligence</h1>
+                        <p>IP Geolocation, DNS Lookup & WHOIS</p>
+                    </div>
+                    <div class="intel-grid">
+                        <div class="widget glass-effect">
+                            <h3>IP Geolocation</h3>
+                            <input type="text" id="ip-input" placeholder="Enter IP Address" class="form-control">
+                            <button id="lookup-ip" class="btn-primary btn-sm mt-2">Lookup</button>
+                            <div id="geo-result" class="mt-3"></div>
+                        </div>
+                        <div class="widget glass-effect">
+                            <h3>DNS Lookup</h3>
+                            <input type="text" id="domain-input" placeholder="Enter Domain" class="form-control">
+                            <button id="lookup-dns" class="btn-primary btn-sm mt-2">Lookup</button>
+                            <div id="dns-result" class="mt-3"></div>
+                        </div>
+                        <div class="widget glass-effect">
+                            <h3>WHOIS Lookup</h3>
+                            <input type="text" id="whois-input" placeholder="Enter Domain/IP" class="form-control">
+                            <button id="lookup-whois" class="btn-primary btn-sm mt-2">Lookup</button>
+                            <div id="whois-result" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Security Insights Page -->
+                <div id="security-page" class="page">
+                    <div class="page-header">
+                        <h1>Security Insights</h1>
+                        <p>Vulnerability Detection & Alerts</p>
+                    </div>
+                    <div class="security-grid">
+                        <div class="widget glass-effect">
+                            <h3>HaveIBeenPwned Check</h3>
+                            <input type="email" id="breach-email" placeholder="Enter Email Address" class="form-control">
+                            <button id="check-breaches" class="btn-primary btn-sm mt-2">Check</button>
+                            <div id="breach-result" class="mt-3"></div>
+                        </div>
+                        <div class="widget glass-effect">
+                            <h3>VirusTotal Scan</h3>
+                            <input type="text" id="scan-url" placeholder="Enter URL or IP" class="form-control">
+                            <button id="scan-url-btn" class="btn-primary btn-sm mt-2">Scan</button>
+                            <div id="scan-result" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Reports Page -->
+                <div id="reports-page" class="page">
+                    <div class="page-header">
+                        <h1>Generate Reports</h1>
+                        <button id="generate-report-btn" class="btn-primary btn-sm">
+                            <i class="fas fa-download"></i> Generate PDF Report
+                        </button>
+                    </div>
+                    <div class="report-preview glass-effect">
+                        <h3>Report Preview</h3>
+                        <div id="report-preview-content">
+                            <p>Network topology snapshot and analytics will appear here...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Custom Scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

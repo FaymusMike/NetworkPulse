@@ -1,0 +1,47 @@
+/* Dark Mode Styles */
+body.dark-mode {
+    --primary-color: #00d4ff;
+    --primary-dark: #0099cc;
+    --secondary-color: #6c63ff;
+    --dark-bg: #0a0e1a;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.6);
+}
+
+body.light-mode {
+    --primary-color: #0099cc;
+    --primary-dark: #0077aa;
+    --secondary-color: #5a52d5;
+    --dark-bg: #f5f7fa;
+    --glass-bg: rgba(255, 255, 255, 0.9);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --text-primary: #2c3e50;
+    --text-secondary: rgba(0, 0, 0, 0.6);
+}
+
+body.light-mode {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+}
+
+body.light-mode .glass-effect {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .sidebar {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+body.light-mode .input-group-custom input,
+body.light-mode .form-select-custom,
+body.light-mode .form-control {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+}
+
+body.light-mode .nav-item:hover,
+body.light-mode .nav-item.active {
+    background: linear-gradient(90deg, rgba(0, 153, 204, 0.1), transparent);
+}
