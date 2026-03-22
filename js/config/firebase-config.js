@@ -1,12 +1,12 @@
 // Firebase Configuration
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID",
-    databaseURL: "YOUR_DATABASE_URL"
+    apiKey: "AIzaSyAjJQlSLLDxvNIB7E9hiTHgGCRMPFAym14",
+    authDomain: "firstbank-biometrics.firebaseapp.com",
+    databaseURL: "https://firstbank-biometrics-default-rtdb.firebaseio.com",
+    projectId: "firstbank-biometrics",
+    storageBucket: "firstbank-biometrics.firebasestorage.app",
+    messagingSenderId: "744204659741",
+    appId: "1:744204659741:web:1a0c1e8ebc7f17f18e2af4"
 };
 
 // Initialize Firebase
@@ -20,8 +20,33 @@ export const rtdb = firebase.database();
 db.enablePersistence()
     .catch((err) => {
         if (err.code == 'failed-precondition') {
-            console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
+            console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
         } else if (err.code == 'unimplemented') {
             console.warn('The current browser does not support all of the features required to enable persistence');
         }
     });
+
+// Initialize Realtime Database with default data if empty
+const initializeDatabase = async () => {
+    const networkStatusRef = rtdb.ref('networkStatus');
+    const status = await networkStatusRef.get();
+    if (!status.exists()) {
+        networkStatusRef.set({
+            healthScore: 98,
+            healthStatus: 'Excellent',
+            lastUpdated: Date.now()
+        });
+    }
+    
+    const metricsRef = rtdb.ref('metrics');
+    const metrics = await metricsRef.get();
+    if (!metrics.exists()) {
+        metricsRef.set({
+            bandwidth: [],
+            latency: [],
+            packetLoss: []
+        });
+    }
+};
+
+initializeDatabase();

@@ -46,7 +46,6 @@ class OfflineSync {
             
             for (const key of unsyncedItems) {
                 try {
-                    // Sync to Firebase based on data type
                     await this.syncToFirebase(key, cache[key].data);
                     cache[key].synced = true;
                 } catch (error) {
@@ -64,12 +63,22 @@ class OfflineSync {
             case 'devices':
                 const devicesRef = db.collection('devices');
                 for (const device of data) {
-                    await devicesRef.doc(device.id).set(device, { merge: true });
+                    if (device.id) {
+                        await devicesRef.doc(device.id).set(device, { merge: true });
+                    } else {
+                        await devicesRef.add(device);
+                    }
                 }
                 break;
             case 'networkMetrics':
                 const metricsRef = rtdb.ref('metrics');
                 await metricsRef.set(data);
+                break;
+            case 'securityEvents':
+                const eventsRef = db.collection('securityEvents');
+                for (const event of data) {
+                    await eventsRef.add(event);
+                }
                 break;
             default:
                 console.log('Unknown sync key:', key);
@@ -78,12 +87,17 @@ class OfflineSync {
 
     showOfflineMode() {
         this.showToast('You are offline. Using cached data.', 'warning');
-        document.getElementById('connection-status').classList.add('offline');
-        document.getElementById('connection-status').innerHTML = '<i class="fas fa-wifi-slash"></i> Offline';
+        const connectionStatus = document.getElementById('connection-status');
+        if (connectionStatus) {
+            connectionStatus.classList.add('offline');
+            connectionStatus.innerHTML = '<i class="fas fa-wifi-slash"></i> Offline';
+        }
     }
 
     showToast(message, type) {
         const toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) return;
+        
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `
@@ -93,7 +107,8 @@ class OfflineSync {
         toastContainer.appendChild(toast);
         
         setTimeout(() => {
-            toast.remove();
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
 
@@ -110,6 +125,12 @@ class OfflineSync {
             timestamp: Date.now()
         });
         await this.cacheData('networkMetrics', cachedMetrics);
+    }
+
+    async saveSecurityEventOffline(event) {
+        const events = this.getCachedData('securityEvents') || [];
+        events.push(event);
+        await this.cacheData('securityEvents', events);
     }
 }
 

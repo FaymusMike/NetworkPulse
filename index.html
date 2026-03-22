@@ -325,21 +325,53 @@
                 <!-- Security Insights Page -->
                 <div id="security-page" class="page">
                     <div class="page-header">
-                        <h1>Security Insights</h1>
-                        <p>Vulnerability Detection & Alerts</p>
+                        <h1>Security Intelligence Panel</h1>
+                        <p>Password Security, IP Threat Detection & DNS Monitoring</p>
                     </div>
+                    
                     <div class="security-grid">
+                        <!-- Password Leak Checker -->
                         <div class="widget glass-effect">
-                            <h3>HaveIBeenPwned Check</h3>
-                            <input type="email" id="breach-email" placeholder="Enter Email Address" class="form-control">
-                            <button id="check-breaches" class="btn-primary btn-sm mt-2">Check</button>
-                            <div id="breach-result" class="mt-3"></div>
+                            <h3><i class="fas fa-key"></i> Password Leak Checker</h3>
+                            <p class="text-muted">Check if a password has been exposed in data breaches</p>
+                            <input type="password" id="password-input" class="form-control" placeholder="Enter password to check">
+                            <button id="check-password" class="btn-primary btn-sm mt-2">Check Password Security</button>
+                            <div id="password-result" class="mt-3"></div>
                         </div>
+                        
+                        <!-- IP Threat Lookup -->
                         <div class="widget glass-effect">
-                            <h3>VirusTotal Scan</h3>
-                            <input type="text" id="scan-url" placeholder="Enter URL or IP" class="form-control">
-                            <button id="scan-url-btn" class="btn-primary btn-sm mt-2">Scan</button>
-                            <div id="scan-result" class="mt-3"></div>
+                            <h3><i class="fas fa-shield-alt"></i> IP Threat Lookup</h3>
+                            <p class="text-muted">Check IP reputation and abuse reports</p>
+                            <input type="text" id="threat-ip-input" class="form-control" placeholder="Enter IP address">
+                            <button id="check-ip-threat" class="btn-primary btn-sm mt-2">Check IP Threat</button>
+                            <div id="ip-threat-result" class="mt-3"></div>
+                        </div>
+                        
+                        <!-- DNS Resolution Checker -->
+                        <div class="widget glass-effect">
+                            <h3><i class="fas fa-globe"></i> DNS Resolution Checker</h3>
+                            <p class="text-muted">Resolve domain names to IP addresses</p>
+                            <input type="text" id="dns-check-input" class="form-control" placeholder="Enter domain name">
+                            <button id="check-dns" class="btn-primary btn-sm mt-2">Resolve DNS</button>
+                            <div id="dns-check-result" class="mt-3"></div>
+                        </div>
+                        
+                        <!-- Geo-IP Tracker -->
+                        <div class="widget glass-effect">
+                            <h3><i class="fas fa-map-marker-alt"></i> Geo-IP Tracker</h3>
+                            <p class="text-muted">Track IP location and geolocation data</p>
+                            <input type="text" id="geo-ip-input" class="form-control" placeholder="Enter IP address">
+                            <button id="track-geo-ip" class="btn-primary btn-sm mt-2">Track Location</button>
+                            <div id="geo-track-result" class="mt-3"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Security Events Log -->
+                    <div class="widget glass-effect mt-4">
+                        <h3><i class="fas fa-history"></i> Security Events Log</h3>
+                        <div id="security-events-list" class="security-events-list">
+                            <div class="text-muted text-center p-4">Loading security events...</div>
                         </div>
                     </div>
                 </div>
