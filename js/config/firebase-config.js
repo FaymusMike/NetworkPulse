@@ -1,4 +1,4 @@
-// js/config/firebase-config.js - Simplified version
+// js/config/firebase-config.js - Ensure proper exports
 const firebaseConfig = {
     apiKey: "AIzaSyAjJQlSLLDxvNIB7E9hiTHgGCRMPFAym14",
     authDomain: "firstbank-biometrics.firebaseapp.com",
@@ -10,13 +10,20 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
 export const auth = firebase.auth();
 export const db = firebase.firestore();
 export const rtdb = firebase.database();
 
-// Simple persistence setup - no complicated error handling
+// Export a check to ensure Firebase is ready
+export const isFirebaseReady = () => {
+    return firebase.apps.length > 0;
+};
+
+// Simple persistence setup
 try {
     db.enablePersistence({ synchronizeTabs: true })
         .catch((err) => {
@@ -26,7 +33,7 @@ try {
     console.log('Persistence setup skipped');
 }
 
-// Simple default data initialization
+// Initialize default data
 export const initDefaultData = async (userId) => {
     try {
         // Check if devices exist
@@ -66,16 +73,18 @@ export const initDefaultData = async (userId) => {
     }
 };
 
-// Simple connection monitor
+// Monitor connection
 rtdb.ref('.info/connected').on('value', (snap) => {
     const statusEl = document.getElementById('connection-status');
     if (statusEl) {
         if (snap.val()) {
             statusEl.innerHTML = '<i class="fas fa-wifi"></i> Online';
             statusEl.classList.remove('offline');
+            statusEl.style.color = 'var(--success-color)';
         } else {
             statusEl.innerHTML = '<i class="fas fa-wifi-slash"></i> Offline';
             statusEl.classList.add('offline');
+            statusEl.style.color = 'var(--danger-color)';
         }
     }
 });
