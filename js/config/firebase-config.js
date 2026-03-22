@@ -1,4 +1,4 @@
-// js/config/firebase-config.js - Complete fixed version
+// js/config/firebase-config.js - COMPLETE FIXED VERSION
 const firebaseConfig = {
     apiKey: "AIzaSyAjJQlSLLDxvNIB7E9hiTHgGCRMPFAym14",
     authDomain: "firstbank-biometrics.firebaseapp.com",
@@ -19,7 +19,7 @@ export const auth = firebase.auth();
 export const db = firebase.firestore();
 export const rtdb = firebase.database();
 
-// Enable persistence
+// Enable persistence with error handling
 try {
     db.enablePersistence({ synchronizeTabs: true })
         .catch((err) => {
@@ -51,6 +51,7 @@ export const initDefaultData = async () => {
             for (const device of sampleDevices) {
                 await db.collection('devices').add(device);
             }
+            console.log('Sample devices created');
         }
         
         if (rtdb) {
@@ -93,8 +94,3 @@ auth.onAuthStateChanged(async (user) => {
         await initDefaultData();
     }
 });
-
-// Export check function
-export const isFirebaseReady = () => {
-    return !!(db && rtdb && auth);
-};

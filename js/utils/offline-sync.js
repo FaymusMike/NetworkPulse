@@ -1,4 +1,5 @@
-// js/utils/offline-sync.js - Complete fixed version
+// js/utils/offline-sync.js - COMPLETE FIXED VERSION
+// Import Firebase services
 import { db, rtdb } from '../config/firebase-config.js';
 
 class OfflineSync {
@@ -22,17 +23,24 @@ class OfflineSync {
             };
             localStorage.setItem(this.cacheKey, JSON.stringify(cache));
             console.log(`Data cached for key: ${key}`);
+            return true;
         } catch (error) {
             console.error('Error caching data:', error);
+            return false;
         }
     }
 
     getCachedData(key) {
-        const cache = this.getCache();
-        if (cache[key] && this.isCacheValid(cache[key].timestamp)) {
-            return cache[key].data;
+        try {
+            const cache = this.getCache();
+            if (cache[key] && this.isCacheValid(cache[key].timestamp)) {
+                return cache[key].data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error getting cached data:', error);
+            return null;
         }
-        return null;
     }
 
     getCache() {
@@ -81,12 +89,6 @@ class OfflineSync {
     async syncToFirebase(key, data) {
         if (!data) return;
         
-        // Check if Firebase is initialized
-        if (!db && key !== 'networkMetrics') {
-            console.warn('Firestore not available for sync');
-            return;
-        }
-        
         switch(key) {
             case 'devices':
                 if (db) {
@@ -115,18 +117,8 @@ class OfflineSync {
                 }
                 break;
                 
-            case 'securityEvents':
-                if (db) {
-                    const eventsRef = db.collection('securityEvents');
-                    for (const event of data) {
-                        try {
-                            await eventsRef.add(event);
-                        } catch (error) {
-                            console.error('Error syncing security event:', error);
-                        }
-                    }
-                }
-                break;
+            default:
+                console.log('Unknown sync key:', key);
         }
     }
 

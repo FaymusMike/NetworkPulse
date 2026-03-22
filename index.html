@@ -26,7 +26,7 @@
     </div>
 
     <!-- Auth Container -->
-    <div id="auth-container" class="auth-container">
+    <div id="auth-container" class="auth-container" style="display: flex;">
         <div class="auth-wrapper">
             <div class="auth-card glass-effect">
                 <div class="auth-header">
@@ -481,6 +481,80 @@
             }
             originalError.apply(console, args);
         };
+
+        // Ensure auth container is visible on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const authContainer = document.getElementById('auth-container');
+            const appContainer = document.getElementById('app-container');
+            
+            // Force auth container to be visible initially
+            if (authContainer) {
+                authContainer.style.display = 'flex';
+                authContainer.style.visibility = 'visible';
+                authContainer.style.opacity = '1';
+            }
+            
+            if (appContainer) {
+                appContainer.style.display = 'none';
+            }
+            
+            // Check if user is already logged in
+            firebase.auth().onAuthStateChanged(function(user) {
+                if (user) {
+                    // User is logged in, hide auth, show app
+                    if (authContainer) authContainer.style.display = 'none';
+                    if (appContainer) appContainer.style.display = 'block';
+                } else {
+                    // User is not logged in, show auth, hide app
+                    if (authContainer) authContainer.style.display = 'flex';
+                    if (appContainer) appContainer.style.display = 'none';
+                }
+            });
+        });
+        
+        // Fix for any z-index issues
+        const style = document.createElement('style');
+        style.textContent = `
+            .auth-container {
+                display: flex !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                min-height: 100vh !important;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                z-index: 10000 !important;
+            }
+            
+            .auth-wrapper {
+                width: 100% !important;
+                max-width: 450px !important;
+                margin: auto !important;
+                padding: 20px !important;
+            }
+            
+            .auth-card {
+                background: rgba(255, 255, 255, 0.95) !important;
+                backdrop-filter: blur(10px) !important;
+                border-radius: 20px !important;
+                padding: 40px !important;
+                box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2) !important;
+            }
+            
+            body.dark-mode .auth-card {
+                background: rgba(10, 14, 26, 0.95) !important;
+            }
+            
+            .auth-form {
+                display: none !important;
+            }
+            
+            .auth-form.active {
+                display: block !important;
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>

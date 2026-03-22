@@ -510,15 +510,13 @@ class App {
     setupInfiniteScroll() {
         // Setup infinite scroll for device list
         let loading = false;
-        let page = 1;
-        const deviceContainer = document.getElementById('devices-table-container');
         
+        const deviceContainer = document.getElementById('devices-table-container');
         if (deviceContainer) {
             const observer = new IntersectionObserver(async (entries) => {
-                if (entries[0].isIntersecting && !loading) {
+                if (entries[0].isIntersecting && !loading && deviceManager.hasMore) {
                     loading = true;
-                    page++;
-                    await deviceManager.loadMoreDevices(page);
+                    await deviceManager.loadMoreDevices();
                     loading = false;
                 }
             }, { threshold: 0.1 });

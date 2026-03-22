@@ -125,45 +125,27 @@ class AuthManager {
         }
     }
 
-    onAuthSuccess() {
-        const authContainer = document.getElementById('auth-container');
-        const appContainer = document.getElementById('app-container');
-        
-        if (authContainer) authContainer.style.display = 'none';
-        if (appContainer) appContainer.style.display = 'block';
-        
-        // Update user info in sidebar
-        const userNameEl = document.getElementById('user-name');
-        const userRoleEl = document.getElementById('user-role');
-        
-        if (userNameEl) {
-            userNameEl.textContent = this.currentUser?.displayName || this.currentUser?.email?.split('@')[0] || 'User';
-        }
-        if (userRoleEl) {
-            userRoleEl.textContent = this.userRole?.toUpperCase() || 'VIEWER';
-        }
-        
-        // Dispatch event for other components
-        window.dispatchEvent(new CustomEvent('userLoggedIn', { 
-            detail: { user: this.currentUser, role: this.userRole } 
-        }));
-        
-        // Hide loading overlay
-        const loadingOverlay = document.getElementById('loading-overlay');
-        if (loadingOverlay) loadingOverlay.style.display = 'none';
-    }
-
     onAuthFailure() {
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
         
-        // Only show auth container if it's hidden
-        if (authContainer && authContainer.style.display !== 'flex') {
+        // Force auth container to be visible
+        if (authContainer) {
             authContainer.style.display = 'flex';
+            authContainer.style.visibility = 'visible';
+            authContainer.style.opacity = '1';
+            authContainer.style.zIndex = '10000';
         }
-        if (appContainer) appContainer.style.display = 'none';
-        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        
+        if (appContainer) {
+            appContainer.style.display = 'none';
+            appContainer.style.visibility = 'hidden';
+        }
+        
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
         
         // Reset forms to default state
         const loginForm = document.getElementById('login-form');
@@ -176,6 +158,48 @@ class AuthManager {
         const signupTab = document.querySelector('.auth-tab[data-tab="signup"]');
         if (loginTab) loginTab.classList.add('active');
         if (signupTab) signupTab.classList.remove('active');
+        
+        // Clear any error messages
+        const errorElements = document.querySelectorAll('.error-message');
+        errorElements.forEach(el => el.remove());
+    }
+
+    onAuthSuccess() {
+        const authContainer = document.getElementById('auth-container');
+        const appContainer = document.getElementById('app-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
+        // Hide auth container
+        if (authContainer) {
+            authContainer.style.display = 'none';
+            authContainer.style.visibility = 'hidden';
+        }
+        
+        // Show app container
+        if (appContainer) {
+            appContainer.style.display = 'block';
+            appContainer.style.visibility = 'visible';
+        }
+        
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+        
+        // Update user info in sidebar
+        const userNameEl = document.getElementById('user-name');
+        const userRoleEl = document.getElementById('user-role');
+        
+        if (userNameEl) {
+            userNameEl.textContent = this.currentUser?.displayName || 
+                                    this.currentUser?.email?.split('@')[0] || 
+                                    'User';
+        }
+        if (userRoleEl) {
+            userRoleEl.textContent = this.userRole?.toUpperCase() || 'VIEWER';
+        }
+        
+        // Dispatch event for other components
+        window.dispatchEvent(new CustomEvent('userLoggedIn', { 
+            detail: { user: this.currentUser, role: this.userRole } 
+        }));
     }
 
     showToast(message, type) {
