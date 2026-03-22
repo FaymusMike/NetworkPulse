@@ -1,4 +1,4 @@
-// Firebase Configuration
+// js/config/firebase-config.js
 const firebaseConfig = {
     apiKey: "AIzaSyAjJQlSLLDxvNIB7E9hiTHgGCRMPFAym14",
     authDomain: "firstbank-biometrics.firebaseapp.com",
@@ -16,37 +16,51 @@ export const auth = firebase.auth();
 export const db = firebase.firestore();
 export const rtdb = firebase.database();
 
-// Enable offline persistence
-db.enablePersistence()
+// Disable persistence to avoid conflicts (temporary fix)
+// Enable offline persistence with error handling
+db.enablePersistence({ synchronizeTabs: true })
     .catch((err) => {
-        if (err.code == 'failed-precondition') {
-            console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-        } else if (err.code == 'unimplemented') {
-            console.warn('The current browser does not support all of the features required to enable persistence');
+        if (err.code === 'failed-precondition') {
+            console.warn('Multiple tabs open, persistence disabled');
+        } else if (err.code === 'unimplemented') {
+            console.warn('Browser doesn\'t support persistence');
         }
     });
 
-// Initialize Realtime Database with default data if empty
+// Initialize Realtime Database with default data if empty (with error handling)
 const initializeDatabase = async () => {
-    const networkStatusRef = rtdb.ref('networkStatus');
-    const status = await networkStatusRef.get();
-    if (!status.exists()) {
-        networkStatusRef.set({
-            healthScore: 98,
-            healthStatus: 'Excellent',
-            lastUpdated: Date.now()
-        });
+    try {
+        const networkStatusRef = rtdb.ref('networkStatus');
+        const status = await networkStatusRef.get();
+        if (!status.exists()) {
+            await networkStatusRef.set({
+                healthScore: 98,
+                healthStatus: 'Excellent',
+                lastUpdated: Date.now()
+            });
+        }
+    } catch (error) {
+        console.error('Error initializing network status:', error);
     }
     
-    const metricsRef = rtdb.ref('metrics');
-    const metrics = await metricsRef.get();
-    if (!metrics.exists()) {
-        metricsRef.set({
-            bandwidth: [],
-            latency: [],
-            packetLoss: []
-        });
+    try {
+        const metricsRef = rtdb.ref('metrics');
+        const metrics = await metricsRef.get();
+        if (!metrics.exists()) {
+            await metricsRef.set({
+                bandwidth: [],
+                latency: [],
+                packetLoss: []
+            });
+        }
+    } catch (error) {
+        console.error('Error initializing metrics:', error);
     }
 };
 
-initializeDatabase();
+// Wait for auth before initializing
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        initializeDatabase();
+    }
+});
