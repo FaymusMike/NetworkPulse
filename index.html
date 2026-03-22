@@ -427,5 +427,26 @@
             });
         }
     </script>
+
+    <script>
+        // Prevent service worker from trying to cache extension URLs
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => {
+                console.log('Service worker registration skipped:', err.message);
+            });
+        }
+        
+        // Suppress Firebase persistence warnings
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && args[0].includes('enableIndexedDbPersistence will be deprecated')) {
+                return;
+            }
+            if (args[0] && args[0].includes('enableMultiTabIndexedDbPersistence will be deprecated')) {
+                return;
+            }
+            originalWarn.apply(console, args);
+        };
+    </script>
 </body>
 </html>

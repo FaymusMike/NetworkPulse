@@ -1581,6 +1581,21 @@ body {
     }
 }
 
+.pulse-critical {
+        animation: pulseCritical 1s ease-in-out;
+    }
+
+    @keyframes pulseCritical {
+        0%, 100% {
+            color: var(--danger-color);
+            transform: scale(1);
+        }
+        50% {
+            color: #ff6b6b;
+            transform: scale(1.1);
+        }
+    }
+
 /* Print styles for reports */
 @media print {
     .sidebar,

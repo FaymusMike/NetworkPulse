@@ -21,10 +21,11 @@ class DeviceManager {
             if (cachedDevices && !navigator.onLine) {
                 this.devices = cachedDevices;
                 this.renderDevicesTable();
+                authManager.showToast('Using cached device data (offline mode)', 'warning');
                 return;
             }
             
-            // Fix: Remove .orderBy('name') temporarily if index doesn't exist
+            // Fetch devices from Firestore
             const devicesSnapshot = await db.collection('devices').get();
             this.devices = [];
             devicesSnapshot.forEach(doc => {
@@ -34,22 +35,70 @@ class DeviceManager {
                 });
             });
             
-            // Sort manually if needed
+            // Sort devices by name for consistent display
             this.devices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
             
-            // Cache devices
+            // Cache devices for offline use
             await offlineSync.cacheData('devices', this.devices);
+            
+            // Render the devices table
             this.renderDevicesTable();
+            
+            // Trigger animation for new devices
+            if (this.devices.length > 0) {
+                gsap.from('.devices-table tbody tr', {
+                    opacity: 0,
+                    x: -20,
+                    stagger: 0.05,
+                    duration: 0.3,
+                    ease: 'power2.out'
+                });
+            }
+            
         } catch (error) {
             console.error('Error loading devices:', error);
+            
             // Fallback to cache if available
             const cachedDevices = offlineSync.getCachedData('devices');
-            if (cachedDevices) {
+            if (cachedDevices && cachedDevices.length > 0) {
                 this.devices = cachedDevices;
                 this.renderDevicesTable();
-                authManager.showToast('Using cached device data', 'warning');
+                authManager.showToast('Using cached device data (connection issue)', 'warning');
             } else {
-                this.renderDevicesTable();
+                // Show error state with retry option
+                const container = document.getElementById('devices-table-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="empty-state error-state">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h3>Unable to Load Devices</h3>
+                            <p>${error.message || 'Please check your network connection'}</p>
+                            <div class="error-actions">
+                                <button onclick="location.reload()" class="btn-primary mt-3">
+                                    <i class="fas fa-sync-alt"></i> Retry
+                                </button>
+                                <button id="load-cached-btn" class="btn-secondary mt-3 ms-2">
+                                    <i class="fas fa-database"></i> Load Cached Data
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add cached data load button handler
+                    const loadCachedBtn = document.getElementById('load-cached-btn');
+                    if (loadCachedBtn) {
+                        loadCachedBtn.onclick = () => {
+                            const cached = offlineSync.getCachedData('devices');
+                            if (cached && cached.length > 0) {
+                                this.devices = cached;
+                                this.renderDevicesTable();
+                                authManager.showToast('Loaded cached device data', 'info');
+                            } else {
+                                authManager.showToast('No cached data available', 'warning');
+                            }
+                        };
+                    }
+                }
             }
         }
     }
@@ -474,6 +523,46 @@ class DeviceManager {
             console.error('Snapshot listener error:', error);
             // Don't show error to user, just log
         });
+    }
+
+    async syncOfflineDevices() {
+        if (!navigator.onLine) {
+            authManager.showToast('Cannot sync while offline', 'warning');
+            return;
+        }
+        
+        const cachedDevices = offlineSync.getCachedData('devices');
+        if (cachedDevices && cachedDevices.length > 0) {
+            authManager.showToast('Syncing offline devices...', 'info');
+            
+            for (const device of cachedDevices) {
+                try {
+                    if (device.id && !device._synced) {
+                        await db.collection('devices').doc(device.id).set(device, { merge: true });
+                        device._synced = true;
+                    } else if (!device.id) {
+                        const docRef = await db.collection('devices').add(device);
+                        device.id = docRef.id;
+                        device._synced = true;
+                    }
+                } catch (error) {
+                    console.error('Error syncing device:', device.name, error);
+                }
+            }
+            
+            // Update cache with synced status
+            await offlineSync.cacheData('devices', cachedDevices);
+            await this.loadDevices();
+            authManager.showToast('Offline devices synced successfully', 'success');
+        }
+    }
+
+    // Add sync button handler
+    setupSyncButton() {
+        const syncBtn = document.getElementById('sync-devices-btn');
+        if (syncBtn) {
+            syncBtn.addEventListener('click', () => this.syncOfflineDevices());
+        }
     }
 }
 

@@ -24,29 +24,98 @@ class DashboardManager {
 
     async loadActiveDevices() {
         try {
-            const devicesSnapshot = await db.collection('devices').get();
-            const activeCount = devicesSnapshot.docs.filter(d => d.data().status === 'active').length;
+            // Try to get from cache first for offline mode
+            const cachedDevices = offlineSync.getCachedData('devices');
+            let devices = [];
+            
+            if (cachedDevices && !navigator.onLine) {
+                devices = cachedDevices;
+            } else {
+                const devicesSnapshot = await db.collection('devices').get();
+                devices = [];
+                devicesSnapshot.forEach(doc => {
+                    devices.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+            }
+            
+            const activeCount = devices.filter(d => d.status === 'active').length;
+            const totalCount = devices.length;
             
             const activeDevicesEl = document.getElementById('active-devices-count');
             if (activeDevicesEl) {
                 const oldValue = parseInt(activeDevicesEl.textContent) || 0;
                 activeDevicesEl.textContent = activeCount;
                 
-                // Animate if value changed
+                // Add status text
+                const statusText = document.querySelector('.stat-change');
+                if (statusText) {
+                    const percentage = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
+                    statusText.innerHTML = `${percentage}% of devices active`;
+                    statusText.className = percentage >= 80 ? 'stat-change positive' : percentage >= 50 ? 'stat-change neutral' : 'stat-change negative';
+                }
+                
+                // Animate if value changed (preserve animation feature)
                 if (oldValue !== activeCount) {
                     gsap.from(activeDevicesEl, {
                         scale: 1.2,
                         duration: 0.3,
-                        ease: 'backOut'
+                        ease: 'backOut',
+                        onComplete: () => {
+                            gsap.to(activeDevicesEl, {
+                                scale: 1,
+                                duration: 0.2
+                            });
+                        }
                     });
                 }
+                
+                // Add pulse effect if devices are critical
+                if (activeCount < totalCount * 0.5) {
+                    activeDevicesEl.classList.add('pulse-critical');
+                    setTimeout(() => {
+                        activeDevicesEl.classList.remove('pulse-critical');
+                    }, 1000);
+                }
             }
+            
+            // Also update the device count in other places if needed
+            const deviceCountElements = document.querySelectorAll('.device-count');
+            deviceCountElements.forEach(el => {
+                el.textContent = totalCount;
+            });
+            
         } catch (error) {
             console.error('Error loading active devices:', error);
             const activeDevicesEl = document.getElementById('active-devices-count');
-            if (activeDevicesEl) activeDevicesEl.textContent = '0';
+            if (activeDevicesEl) {
+                // Try to use cached data
+                const cachedDevices = offlineSync.getCachedData('devices');
+                if (cachedDevices) {
+                    const activeCount = cachedDevices.filter(d => d.status === 'active').length;
+                    activeDevicesEl.textContent = activeCount;
+                    authManager.showToast('Using cached device data', 'warning');
+                } else {
+                    activeDevicesEl.textContent = '?';
+                    activeDevicesEl.title = 'Unable to load device count';
+                }
+            }
         }
     }
+
+    updateDeviceMetrics() {
+        // Update additional device metrics if needed
+        const totalDevicesEl = document.getElementById('total-devices-count');
+        const activePercentageEl = document.getElementById('active-percentage');
+        
+        if (totalDevicesEl) {
+            // This would be populated from another data source
+            // Keeping for future enhancements
+        }
+    }
+
 
     async loadNetworkHealth() {
         try {
