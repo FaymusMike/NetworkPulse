@@ -1,3 +1,4 @@
+// js/components/device-manager.js - COMPLETE with all features + fixes
 import { db } from '../config/firebase-config.js';
 import { authManager } from '../auth/auth.js';
 import { offlineSync } from '../utils/offline-sync.js';
@@ -23,7 +24,8 @@ class DeviceManager {
                 return;
             }
             
-            const devicesSnapshot = await db.collection('devices').orderBy('name').get();
+            // Fix: Remove .orderBy('name') temporarily if index doesn't exist
+            const devicesSnapshot = await db.collection('devices').get();
             this.devices = [];
             devicesSnapshot.forEach(doc => {
                 this.devices.push({
@@ -32,12 +34,23 @@ class DeviceManager {
                 });
             });
             
+            // Sort manually if needed
+            this.devices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            
             // Cache devices
             await offlineSync.cacheData('devices', this.devices);
             this.renderDevicesTable();
         } catch (error) {
             console.error('Error loading devices:', error);
-            this.renderDevicesTable();
+            // Fallback to cache if available
+            const cachedDevices = offlineSync.getCachedData('devices');
+            if (cachedDevices) {
+                this.devices = cachedDevices;
+                this.renderDevicesTable();
+                authManager.showToast('Using cached device data', 'warning');
+            } else {
+                this.renderDevicesTable();
+            }
         }
     }
 
@@ -51,8 +64,13 @@ class DeviceManager {
                     <i class="fas fa-server"></i>
                     <h3>No Devices Found</h3>
                     <p>Click "Add Device" to start managing your network infrastructure.</p>
+                    ${authManager.hasPermission('network-engineer') ? 
+                        '<button id="empty-add-device" class="btn-primary mt-3">Add Your First Device</button>' : ''}
                 </div>
             `;
+            
+            const addBtn = document.getElementById('empty-add-device');
+            if (addBtn) addBtn.addEventListener('click', () => this.showDeviceModal());
             return;
         }
         
@@ -64,6 +82,7 @@ class DeviceManager {
                     <th>Device Name</th>
                     <th>Type</th>
                     <th>IP Address</th>
+                    <th>Subnet Mask</th>
                     <th>VLAN</th>
                     <th>Status</th>
                     <th>Last Seen</th>
@@ -73,19 +92,23 @@ class DeviceManager {
             <tbody>
                 ${this.devices.map(device => `
                     <tr data-id="${device.id}">
-                        <td><strong>${device.name}</strong></td>
+                        <td><strong>${this.escapeHtml(device.name)}</strong></td>
                         <td><span class="device-type-badge type-${device.type}">${device.type}</span></td>
-                        <td><code>${device.ip}</code></td>
+                        <td><code>${device.ip || 'N/A'}</code></td>
+                        <td><code>${device.subnet || '255.255.255.0'}</code></td>
                         <td>${device.vlan || 'N/A'}</td>
-                        <td><span class="device-status ${device.status}">${device.status}</span></td>
+                        <td><span class="device-status ${device.status}">${device.status || 'unknown'}</span></td>
                         <td>${device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'N/A'}</td>
                         ${authManager.hasPermission('network-engineer') ? `
                             <td class="actions">
-                                <button class="action-btn edit-device" data-id="${device.id}">
+                                <button class="action-btn edit-device" data-id="${device.id}" title="Edit Device">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="action-btn delete-device" data-id="${device.id}">
+                                <button class="action-btn delete-device" data-id="${device.id}" title="Delete Device">
                                     <i class="fas fa-trash"></i>
+                                </button>
+                                <button class="action-btn view-details" data-id="${device.id}" title="View Details">
+                                    <i class="fas fa-info-circle"></i>
                                 </button>
                             </td>
                         ` : ''}
@@ -100,17 +123,53 @@ class DeviceManager {
         // Add event listeners for action buttons
         if (authManager.hasPermission('network-engineer')) {
             document.querySelectorAll('.edit-device').forEach(btn => {
-                btn.addEventListener('click', () => this.editDevice(btn.dataset.id));
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.editDevice(btn.dataset.id);
+                });
             });
             
             document.querySelectorAll('.delete-device').forEach(btn => {
-                btn.addEventListener('click', () => this.deleteDevice(btn.dataset.id));
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteDevice(btn.dataset.id);
+                });
+            });
+            
+            document.querySelectorAll('.view-details').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.viewDeviceDetails(btn.dataset.id);
+                });
             });
         }
+        
+        // Add row click for quick view
+        document.querySelectorAll('.devices-table tbody tr').forEach(row => {
+            row.addEventListener('click', (e) => {
+                if (!e.target.closest('.action-btn')) {
+                    const deviceId = row.dataset.id;
+                    this.viewDeviceDetails(deviceId);
+                }
+            });
+        });
+    }
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     setupEventListeners() {
-        document.getElementById('add-device-btn')?.addEventListener('click', () => this.showDeviceModal());
+        const addBtn = document.getElementById('add-device-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this.showDeviceModal());
+        }
         
         window.addEventListener('editDevice', (event) => {
             this.editDevice(event.detail.id);
@@ -123,53 +182,82 @@ class DeviceManager {
         modal.className = 'modal fade';
         modal.setAttribute('tabindex', '-1');
         modal.innerHTML = `
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content glass-effect">
                     <div class="modal-header">
-                        <h5 class="modal-title">${device ? 'Edit Device' : 'Add New Device'}</h5>
+                        <h5 class="modal-title">
+                            <i class="fas ${device ? 'fa-edit' : 'fa-plus-circle'}"></i>
+                            ${device ? 'Edit Device' : 'Add New Device'}
+                        </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <form id="device-form">
-                            <div class="form-group">
-                                <label>Device Name</label>
-                                <input type="text" id="device-name" class="form-control" value="${device?.name || ''}" required>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Device Name <span class="text-danger">*</span></label>
+                                        <input type="text" id="device-name" class="form-control" value="${this.escapeHtml(device?.name || '')}" required placeholder="e.g., Core-Router-01">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Device Type <span class="text-danger">*</span></label>
+                                        <select id="device-type" class="form-control" required>
+                                            <option value="router" ${device?.type === 'router' ? 'selected' : ''}>Router</option>
+                                            <option value="switch" ${device?.type === 'switch' ? 'selected' : ''}>Switch</option>
+                                            <option value="firewall" ${device?.type === 'firewall' ? 'selected' : ''}>Firewall</option>
+                                            <option value="server" ${device?.type === 'server' ? 'selected' : ''}>Server</option>
+                                            <option value="client" ${device?.type === 'client' ? 'selected' : ''}>Client</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>IP Address <span class="text-danger">*</span></label>
+                                        <input type="text" id="device-ip" class="form-control" value="${device?.ip || ''}" placeholder="192.168.1.1" required pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$">
+                                        <small class="text-muted">Enter valid IPv4 address</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Subnet Mask</label>
+                                        <input type="text" id="device-subnet" class="form-control" value="${device?.subnet || '255.255.255.0'}" placeholder="255.255.255.0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>VLAN ID</label>
+                                        <input type="number" id="device-vlan" class="form-control" value="${device?.vlan || '1'}" min="1" max="4094">
+                                        <small class="text-muted">Range: 1-4094</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Status</label>
+                                        <select id="device-status" class="form-control">
+                                            <option value="active" ${device?.status === 'active' ? 'selected' : ''}>Active</option>
+                                            <option value="inactive" ${device?.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                                            <option value="maintenance" ${device?.status === 'maintenance' ? 'selected' : ''}>Maintenance</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group">
-                                <label>Device Type</label>
-                                <select id="device-type" class="form-control" required>
-                                    <option value="router" ${device?.type === 'router' ? 'selected' : ''}>Router</option>
-                                    <option value="switch" ${device?.type === 'switch' ? 'selected' : ''}>Switch</option>
-                                    <option value="firewall" ${device?.type === 'firewall' ? 'selected' : ''}>Firewall</option>
-                                    <option value="server" ${device?.type === 'server' ? 'selected' : ''}>Server</option>
-                                    <option value="client" ${device?.type === 'client' ? 'selected' : ''}>Client</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>IP Address</label>
-                                <input type="text" id="device-ip" class="form-control" value="${device?.ip || ''}" placeholder="192.168.1.1" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Subnet Mask</label>
-                                <input type="text" id="device-subnet" class="form-control" value="${device?.subnet || '255.255.255.0'}" required>
-                            </div>
-                            <div class="form-group">
-                                <label>VLAN ID</label>
-                                <input type="number" id="device-vlan" class="form-control" value="${device?.vlan || '1'}">
-                            </div>
-                            <div class="form-group">
-                                <label>Status</label>
-                                <select id="device-status" class="form-control">
-                                    <option value="active" ${device?.status === 'active' ? 'selected' : ''}>Active</option>
-                                    <option value="inactive" ${device?.status === 'inactive' ? 'selected' : ''}>Inactive</option>
-                                    <option value="maintenance" ${device?.status === 'maintenance' ? 'selected' : ''}>Maintenance</option>
-                                </select>
+                                <label>Configuration Notes</label>
+                                <textarea id="device-config" class="form-control" rows="3" placeholder="Enter device configuration notes...">${device?.config || ''}</textarea>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" id="save-device-btn" class="btn-primary">${device ? 'Update' : 'Create'} Device</button>
+                        <button type="button" id="save-device-btn" class="btn-primary">
+                            <i class="fas fa-save"></i> ${device ? 'Update' : 'Create'} Device
+                        </button>
                     </div>
                 </div>
             </div>
@@ -179,28 +267,54 @@ class DeviceManager {
         const modalInstance = new bootstrap.Modal(modal);
         modalInstance.show();
         
-        document.getElementById('save-device-btn').onclick = () => {
+        const saveBtn = document.getElementById('save-device-btn');
+        saveBtn.onclick = async () => {
+            // Validate IP
+            const ipInput = document.getElementById('device-ip');
+            if (!this.validateIP(ipInput.value)) {
+                authManager.showToast('Please enter a valid IP address', 'error');
+                ipInput.classList.add('is-invalid');
+                return;
+            }
+            ipInput.classList.remove('is-invalid');
+            
             const deviceData = {
-                name: document.getElementById('device-name').value,
+                name: document.getElementById('device-name').value.trim(),
                 type: document.getElementById('device-type').value,
-                ip: document.getElementById('device-ip').value,
-                subnet: document.getElementById('device-subnet').value,
+                ip: document.getElementById('device-ip').value.trim(),
+                subnet: document.getElementById('device-subnet').value.trim(),
                 vlan: parseInt(document.getElementById('device-vlan').value),
                 status: document.getElementById('device-status').value,
+                config: document.getElementById('device-config').value,
                 lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
             };
             
-            if (device) {
-                this.updateDevice(device.id, deviceData);
-            } else {
-                this.createDevice(deviceData);
+            if (!deviceData.name) {
+                authManager.showToast('Device name is required', 'error');
+                return;
             }
             
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            
+            if (device) {
+                await this.updateDevice(device.id, deviceData);
+            } else {
+                await this.createDevice(deviceData);
+            }
+            
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = `<i class="fas fa-save"></i> ${device ? 'Update' : 'Create'} Device`;
             modalInstance.hide();
             modal.remove();
         };
         
         modal.addEventListener('hidden.bs.modal', () => modal.remove());
+    }
+
+    validateIP(ip) {
+        const ipPattern = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        return ipPattern.test(ip);
     }
 
     async createDevice(deviceData) {
@@ -216,27 +330,28 @@ class DeviceManager {
                 await offlineSync.saveDeviceOffline({ id: docRef.id, ...deviceData });
             }
             
-            authManager.showToast('Device created successfully', 'success');
+            authManager.showToast(`Device "${deviceData.name}" created successfully`, 'success');
             this.loadDevices();
         } catch (error) {
             console.error('Error creating device:', error);
-            authManager.showToast('Failed to create device', 'error');
+            authManager.showToast('Failed to create device: ' + error.message, 'error');
         }
     }
 
     async updateDevice(deviceId, deviceData) {
         try {
             await db.collection('devices').doc(deviceId).update(deviceData);
-            authManager.showToast('Device updated successfully', 'success');
+            authManager.showToast(`Device "${deviceData.name}" updated successfully`, 'success');
             this.loadDevices();
         } catch (error) {
             console.error('Error updating device:', error);
-            authManager.showToast('Failed to update device', 'error');
+            authManager.showToast('Failed to update device: ' + error.message, 'error');
         }
     }
 
     async deleteDevice(deviceId) {
-        const confirmModal = confirm('Are you sure you want to delete this device? This action cannot be undone.');
+        const device = this.devices.find(d => d.id === deviceId);
+        const confirmModal = confirm(`Are you sure you want to delete "${device?.name || 'this device'}"? This action cannot be undone.`);
         if (!confirmModal) return;
         
         try {
@@ -245,7 +360,7 @@ class DeviceManager {
             this.loadDevices();
         } catch (error) {
             console.error('Error deleting device:', error);
-            authManager.showToast('Failed to delete device', 'error');
+            authManager.showToast('Failed to delete device: ' + error.message, 'error');
         }
     }
 
@@ -254,6 +369,92 @@ class DeviceManager {
         if (device) {
             this.showDeviceModal(device);
         }
+    }
+
+    viewDeviceDetails(deviceId) {
+        const device = this.devices.find(d => d.id === deviceId);
+        if (!device) return;
+        
+        const modal = document.createElement('div');
+        modal.id = 'deviceDetailsModal';
+        modal.className = 'modal fade';
+        modal.setAttribute('tabindex', '-1');
+        modal.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content glass-effect">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-info-circle"></i> Device Details: ${this.escapeHtml(device.name)}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="device-details-panel">
+                            <div class="detail-row">
+                                <span class="detail-label">Device Name:</span>
+                                <span class="detail-value">${this.escapeHtml(device.name)}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Type:</span>
+                                <span class="detail-value">${device.type}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">IP Address:</span>
+                                <span class="detail-value"><code>${device.ip || 'N/A'}</code></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Subnet Mask:</span>
+                                <span class="detail-value"><code>${device.subnet || '255.255.255.0'}</code></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">VLAN:</span>
+                                <span class="detail-value">${device.vlan || 'N/A'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Status:</span>
+                                <span class="detail-value"><span class="device-status ${device.status}">${device.status}</span></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Created:</span>
+                                <span class="detail-value">${device.createdAt ? new Date(device.createdAt).toLocaleString() : 'N/A'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Last Seen:</span>
+                                <span class="detail-value">${device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'N/A'}</span>
+                            </div>
+                            ${device.config ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Configuration:</span>
+                                    <span class="detail-value"><pre class="config-preview">${this.escapeHtml(device.config)}</pre></span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        ${authManager.hasPermission('network-engineer') ? `
+                            <button id="edit-from-details" class="btn-primary">
+                                <i class="fas fa-edit"></i> Edit Device
+                            </button>
+                        ` : ''}
+                        <button class="btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        const modalInstance = new bootstrap.Modal(modal);
+        modalInstance.show();
+        
+        const editBtn = document.getElementById('edit-from-details');
+        if (editBtn) {
+            editBtn.onclick = () => {
+                modalInstance.hide();
+                setTimeout(() => this.editDevice(deviceId), 300);
+            };
+        }
+        
+        modal.addEventListener('hidden.bs.modal', () => modal.remove());
     }
 
     listenForDeviceChanges() {
@@ -269,6 +470,9 @@ class DeviceManager {
                     authManager.showToast('Device removed from network', 'info');
                 }
             });
+        }, (error) => {
+            console.error('Snapshot listener error:', error);
+            // Don't show error to user, just log
         });
     }
 }
