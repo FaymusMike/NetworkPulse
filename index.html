@@ -457,6 +457,30 @@
                 if (appContainer) appContainer.style.display = 'none';
             }
         });
+
+        // Register service worker with error handling
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                })
+                .catch(error => {
+                    console.log('ServiceWorker registration failed: ', error.message);
+                    // Don't show error to user - service worker is optional
+                });
+        }
+        
+        // Suppress service worker cache errors in console
+        const originalError = console.error;
+        console.error = function(...args) {
+            if (args[0] && typeof args[0] === 'string') {
+                if (args[0].includes('Failed to execute \'put\' on \'Cache\'') ||
+                    args[0].includes('Request scheme \'chrome-extension\' is unsupported')) {
+                    return;
+                }
+            }
+            originalError.apply(console, args);
+        };
     </script>
 </body>
 </html>
