@@ -164,42 +164,86 @@ class DashboardManager {
 
     async loadAlerts() {
         try {
-            const alertsSnapshot = await db.collection('alerts')
-                .where('resolved', '==', false)
-                .orderBy('timestamp', 'desc')
-                .limit(5)
-                .get();
+            // Attempt to fetch with orderBy first (if index exists)
+            let alertsSnapshot;
+            try {
+                alertsSnapshot = await db.collection('alerts')
+                    .where('resolved', '==', false)
+                    .orderBy('timestamp', 'desc')
+                    .limit(5)
+                    .get();
+            } catch (indexError) {
+                // If index error, fetch without orderBy and sort manually
+                console.warn('Index missing, fetching without orderBy');
+                alertsSnapshot = await db.collection('alerts')
+                    .where('resolved', '==', false)
+                    .limit(10)
+                    .get();
+            }
             
             const alertList = document.getElementById('alert-list');
-            if (alertList) {
-                if (alertsSnapshot.empty) {
-                    alertList.innerHTML = `
-                        <div class="alert-item info">
-                            <i class="fas fa-check-circle"></i>
-                            <div>
-                                <strong>All Systems Operational</strong>
-                                <p>No active alerts. Network is healthy.</p>
-                            </div>
+            if (!alertList) return;
+            
+            if (alertsSnapshot.empty) {
+                alertList.innerHTML = `
+                    <div class="alert-item info">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <strong>All Systems Operational</strong>
+                            <p>No active alerts. Network is healthy.</p>
                         </div>
-                    `;
-                } else {
-                    alertList.innerHTML = '';
-                    alertsSnapshot.forEach(doc => {
-                        const alert = doc.data();
-                        const alertDiv = document.createElement('div');
-                        alertDiv.className = `alert-item ${alert.severity || 'info'}`;
-                        alertDiv.innerHTML = `
-                            <i class="fas ${this.getAlertIcon(alert.severity)}"></i>
-                            <div>
-                                <strong>${this.escapeHtml(alert.title || 'Alert')}</strong>
-                                <p>${this.escapeHtml(alert.message || 'No details')}</p>
-                                <small>${alert.timestamp ? new Date(alert.timestamp.toDate()).toLocaleString() : 'Just now'}</small>
-                            </div>
-                        `;
-                        alertList.appendChild(alertDiv);
-                    });
-                }
+                    </div>
+                `;
+                return;
             }
+            
+            // Collect and sort alerts
+            let alerts = [];
+            alertsSnapshot.forEach(doc => {
+                alerts.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+            
+            // Sort by timestamp if not already ordered
+            alerts.sort((a, b) => {
+                const timeA = a.timestamp?.toDate?.() || new Date(0);
+                const timeB = b.timestamp?.toDate?.() || new Date(0);
+                return timeB - timeA;
+            });
+            
+            // Display alerts
+            alertList.innerHTML = '';
+            alerts.slice(0, 5).forEach(alert => {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert-item ${alert.severity || 'info'}`;
+                alertDiv.innerHTML = `
+                    <i class="fas ${this.getAlertIcon(alert.severity)}"></i>
+                    <div>
+                        <strong>${this.escapeHtml(alert.title || 'Alert')}</strong>
+                        <p>${this.escapeHtml(alert.message || 'No details')}</p>
+                        <small>${alert.timestamp ? this.formatAlertTime(alert.timestamp.toDate()) : 'Just now'}</small>
+                        ${alert.severity === 'critical' ? '<span class="critical-badge">URGENT</span>' : ''}
+                    </div>
+                    <button class="alert-dismiss" data-id="${alert.id}" title="Acknowledge">
+                        <i class="fas fa-check"></i>
+                    </button>
+                `;
+                alertList.appendChild(alertDiv);
+            });
+            
+            // Add dismiss functionality
+            document.querySelectorAll('.alert-dismiss').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const alertId = btn.dataset.id;
+                    await db.collection('alerts').doc(alertId).update({ resolved: true });
+                    this.loadAlerts(); // Refresh
+                    this.updateNotificationBadge(false);
+                });
+            });
+            
         } catch (error) {
             console.error('Error loading alerts:', error);
             const alertList = document.getElementById('alert-list');
@@ -208,13 +252,29 @@ class DashboardManager {
                     <div class="alert-item warning">
                         <i class="fas fa-exclamation-triangle"></i>
                         <div>
-                            <strong>Unable to Load Alerts</strong>
-                            <p>Please check your connection and refresh the page.</p>
+                            <strong>Alert System Issue</strong>
+                            <p>Unable to load alerts. Please create the required index.</p>
+                            <button onclick="window.open('https://console.firebase.google.com/project/firstbank-biometrics/firestore/indexes', '_blank')" class="btn-sm btn-primary mt-2">
+                                <i class="fas fa-database"></i> Create Index
+                            </button>
                         </div>
                     </div>
                 `;
             }
         }
+    }
+
+    formatAlertTime(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} min ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
     }
 
     escapeHtml(str) {
