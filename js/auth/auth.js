@@ -1,20 +1,26 @@
-// js/auth/auth.js - Critical fixes
+// js/auth/auth.js - COMPLETE FIXED VERSION
 import { auth, db, initDefaultData } from '../config/firebase-config.js';
 
 class AuthManager {
     constructor() {
         this.currentUser = null;
         this.userRole = 'viewer';
+        this.initialized = false;
         this.setupAuthListener();
     }
 
     setupAuthListener() {
+        // Listen for auth state changes
         auth.onAuthStateChanged(async (user) => {
+            console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user');
+            
             if (user) {
                 this.currentUser = user;
                 await this.loadOrCreateUserProfile(user);
                 this.onAuthSuccess();
             } else {
+                this.currentUser = null;
+                this.userRole = 'viewer';
                 this.onAuthFailure();
             }
         });
@@ -25,9 +31,10 @@ class AuthManager {
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
                 this.userRole = userDoc.data().role || 'viewer';
+                console.log('User role loaded:', this.userRole);
             } else {
                 // Create new user profile
-                const role = 'viewer'; // Default role for new users
+                const role = 'viewer';
                 await db.collection('users').doc(user.uid).set({
                     name: user.displayName || user.email.split('@')[0],
                     email: user.email,
@@ -36,8 +43,9 @@ class AuthManager {
                     lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 this.userRole = role;
+                console.log('New user profile created');
                 
-                // Initialize default data for new user
+                // Initialize default data
                 await initDefaultData(user.uid);
             }
         } catch (error) {
@@ -49,9 +57,10 @@ class AuthManager {
     async loginWithEmail(email, password) {
         try {
             const result = await auth.signInWithEmailAndPassword(email, password);
-            this.showToast('Login successful!', 'success');
+            this.showToast('Login successful! Welcome back.', 'success');
             return result;
         } catch (error) {
+            console.error('Login error:', error);
             this.showToast(this.getErrorMessage(error.code), 'error');
             throw error;
         }
@@ -60,10 +69,12 @@ class AuthManager {
     async loginWithGoogle() {
         try {
             const provider = new firebase.auth.GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
             const result = await auth.signInWithPopup(provider);
             this.showToast('Google login successful!', 'success');
             return result;
         } catch (error) {
+            console.error('Google login error:', error);
             this.showToast(this.getErrorMessage(error.code), 'error');
             throw error;
         }
@@ -82,9 +93,6 @@ class AuthManager {
                 lastLogin: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            // Initialize default data
-            await initDefaultData(result.user.uid);
-            
             this.showToast('Account created successfully!', 'success');
             return result;
         } catch (error) {
@@ -98,22 +106,22 @@ class AuthManager {
         const errors = {
             'auth/wrong-password': 'Invalid email or password',
             'auth/user-not-found': 'No account found with this email',
-            'auth/email-already-in-use': 'Email already registered. Please login.',
+            'auth/email-already-in-use': 'Email already registered',
             'auth/invalid-email': 'Invalid email address',
             'auth/weak-password': 'Password must be at least 6 characters',
             'auth/network-request-failed': 'Network error. Check your connection.'
         };
-        return errors[code] || 'Authentication failed. Please try again.';
+        return errors[code] || 'Authentication failed';
     }
 
     getSignupErrorMessage(code) {
         const errors = {
-            'auth/email-already-in-use': 'Email already registered. Please login instead.',
+            'auth/email-already-in-use': 'Email already registered',
             'auth/invalid-email': 'Invalid email address',
             'auth/weak-password': 'Password must be at least 6 characters',
-            'auth/network-request-failed': 'Network error. Please check your connection.'
+            'auth/network-request-failed': 'Network error. Check your connection.'
         };
-        return errors[code] || 'Signup failed. Please try again.';
+        return errors[code] || 'Signup failed';
     }
 
     async logout() {
@@ -125,81 +133,69 @@ class AuthManager {
         }
     }
 
-    onAuthFailure() {
+    onAuthSuccess() {
+        // Hide auth container
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
         
-        // Force auth container to be visible
         if (authContainer) {
-            authContainer.style.display = 'flex';
-            authContainer.style.visibility = 'visible';
-            authContainer.style.opacity = '1';
-            authContainer.style.zIndex = '10000';
+            authContainer.style.display = 'none';
         }
-        
         if (appContainer) {
-            appContainer.style.display = 'none';
-            appContainer.style.visibility = 'hidden';
+            appContainer.style.display = 'block';
         }
-        
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
         }
         
-        // Reset forms to default state
-        const loginForm = document.getElementById('login-form');
-        const signupForm = document.getElementById('signup-form');
-        if (loginForm) loginForm.classList.add('active');
-        if (signupForm) signupForm.classList.remove('active');
-        
-        // Reset auth tabs
-        const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
-        const signupTab = document.querySelector('.auth-tab[data-tab="signup"]');
-        if (loginTab) loginTab.classList.add('active');
-        if (signupTab) signupTab.classList.remove('active');
-        
-        // Clear any error messages
-        const errorElements = document.querySelectorAll('.error-message');
-        errorElements.forEach(el => el.remove());
-    }
-
-    onAuthSuccess() {
-        const authContainer = document.getElementById('auth-container');
-        const appContainer = document.getElementById('app-container');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        
-        // Hide auth container
-        if (authContainer) {
-            authContainer.style.display = 'none';
-            authContainer.style.visibility = 'hidden';
-        }
-        
-        // Show app container
-        if (appContainer) {
-            appContainer.style.display = 'block';
-            appContainer.style.visibility = 'visible';
-        }
-        
-        if (loadingOverlay) loadingOverlay.style.display = 'none';
-        
-        // Update user info in sidebar
+        // Update user info
         const userNameEl = document.getElementById('user-name');
         const userRoleEl = document.getElementById('user-role');
         
         if (userNameEl) {
             userNameEl.textContent = this.currentUser?.displayName || 
-                                    this.currentUser?.email?.split('@')[0] || 
-                                    'User';
+                                     this.currentUser?.email?.split('@')[0] || 
+                                     'User';
         }
         if (userRoleEl) {
             userRoleEl.textContent = this.userRole?.toUpperCase() || 'VIEWER';
         }
         
-        // Dispatch event for other components
+        // Dispatch event
         window.dispatchEvent(new CustomEvent('userLoggedIn', { 
             detail: { user: this.currentUser, role: this.userRole } 
         }));
+    }
+
+    onAuthFailure() {
+        // Show auth container
+        const authContainer = document.getElementById('auth-container');
+        const appContainer = document.getElementById('app-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
+        if (authContainer) {
+            authContainer.style.display = 'flex';
+            authContainer.style.visibility = 'visible';
+            authContainer.style.opacity = '1';
+        }
+        if (appContainer) {
+            appContainer.style.display = 'none';
+        }
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+        
+        // Reset forms
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+        const signupTab = document.querySelector('.auth-tab[data-tab="signup"]');
+        
+        if (loginForm) loginForm.classList.add('active');
+        if (signupForm) signupForm.classList.remove('active');
+        if (loginTab) loginTab.classList.add('active');
+        if (signupTab) signupTab.classList.remove('active');
     }
 
     showToast(message, type) {

@@ -73,6 +73,23 @@ class App {
         this.startPerformanceMonitoring();
     }
 
+    // CRITICAL FIX: Ensure auth container is visible when not logged in
+    ensureAuthVisibility() {
+        if (!authManager.currentUser) {
+            const authContainer = document.getElementById('auth-container');
+            const appContainer = document.getElementById('app-container');
+            
+            if (authContainer) {
+                authContainer.style.display = 'flex';
+                authContainer.style.visibility = 'visible';
+                authContainer.style.opacity = '1';
+            }
+            if (appContainer) {
+                appContainer.style.display = 'none';
+            }
+        }
+    }
+
     setupEventListeners() {
         // Auth form handling with better error prevention
         const loginForm = document.getElementById('login-form');

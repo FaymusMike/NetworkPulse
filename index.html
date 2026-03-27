@@ -25,8 +25,8 @@
         </div>
     </div>
 
-    <!-- Auth Container -->
-    <div id="auth-container" class="auth-container" style="display: flex;">
+    <!-- Auth Container - STARTS VISIBLE -->
+    <div id="auth-container" class="auth-container" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
         <div class="auth-wrapper">
             <div class="auth-card glass-effect">
                 <div class="auth-header">
@@ -84,7 +84,7 @@
         </div>
     </div>
 
-    <!-- Main App Container -->
+    <!-- Main App Container - STARTS HIDDEN -->
     <div id="app-container" style="display: none;">
         <!-- Sidebar -->
         <nav class="sidebar">
@@ -99,7 +99,7 @@
             </div>
             
             <div class="user-info">
-                <div class="user-avatar" id="user-avatar">
+                <div class="user-avatar">
                     <i class="fas fa-user-circle"></i>
                 </div>
                 <div class="user-details">
@@ -153,7 +153,6 @@
         
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Header -->
             <header class="top-header">
                 <button id="mobile-menu-toggle" class="mobile-menu-toggle">
                     <i class="fas fa-bars"></i>
@@ -187,7 +186,7 @@
                             </div>
                             <div class="widget-content">
                                 <div class="stat-number" id="active-devices-count">0</div>
-                                <div class="stat-change positive">+12% from last week</div>
+                                <div class="stat-change positive">Loading...</div>
                             </div>
                         </div>
                         
@@ -219,7 +218,7 @@
                             </div>
                             <div class="widget-content">
                                 <div class="alert-list" id="alert-list">
-                                    <div class="alert-item info">No critical alerts</div>
+                                    <div class="alert-item info">Loading alerts...</div>
                                 </div>
                             </div>
                         </div>
@@ -303,19 +302,19 @@
                     <div class="intel-grid">
                         <div class="widget glass-effect">
                             <h3>IP Geolocation</h3>
-                            <input type="text" id="ip-input" placeholder="Enter IP Address" class="form-control">
+                            <input type="text" id="ip-input" class="form-control" placeholder="Enter IP Address">
                             <button id="lookup-ip" class="btn-primary btn-sm mt-2">Lookup</button>
                             <div id="geo-result" class="mt-3"></div>
                         </div>
                         <div class="widget glass-effect">
                             <h3>DNS Lookup</h3>
-                            <input type="text" id="domain-input" placeholder="Enter Domain" class="form-control">
+                            <input type="text" id="domain-input" class="form-control" placeholder="Enter Domain">
                             <button id="lookup-dns" class="btn-primary btn-sm mt-2">Lookup</button>
                             <div id="dns-result" class="mt-3"></div>
                         </div>
                         <div class="widget glass-effect">
                             <h3>WHOIS Lookup</h3>
-                            <input type="text" id="whois-input" placeholder="Enter Domain/IP" class="form-control">
+                            <input type="text" id="whois-input" class="form-control" placeholder="Enter Domain/IP">
                             <button id="lookup-whois" class="btn-primary btn-sm mt-2">Lookup</button>
                             <div id="whois-result" class="mt-3"></div>
                         </div>
@@ -328,51 +327,35 @@
                         <h1>Security Intelligence Panel</h1>
                         <p>Password Security, IP Threat Detection & DNS Monitoring</p>
                     </div>
-                    
                     <div class="security-grid">
-                        <!-- Password Leak Checker -->
                         <div class="widget glass-effect">
                             <h3><i class="fas fa-key"></i> Password Leak Checker</h3>
-                            <p class="text-muted">Check if a password has been exposed in data breaches</p>
                             <input type="password" id="password-input" class="form-control" placeholder="Enter password to check">
                             <button id="check-password" class="btn-primary btn-sm mt-2">Check Password Security</button>
                             <div id="password-result" class="mt-3"></div>
                         </div>
-                        
-                        <!-- IP Threat Lookup -->
                         <div class="widget glass-effect">
                             <h3><i class="fas fa-shield-alt"></i> IP Threat Lookup</h3>
-                            <p class="text-muted">Check IP reputation and abuse reports</p>
                             <input type="text" id="threat-ip-input" class="form-control" placeholder="Enter IP address">
                             <button id="check-ip-threat" class="btn-primary btn-sm mt-2">Check IP Threat</button>
                             <div id="ip-threat-result" class="mt-3"></div>
                         </div>
-                        
-                        <!-- DNS Resolution Checker -->
                         <div class="widget glass-effect">
                             <h3><i class="fas fa-globe"></i> DNS Resolution Checker</h3>
-                            <p class="text-muted">Resolve domain names to IP addresses</p>
                             <input type="text" id="dns-check-input" class="form-control" placeholder="Enter domain name">
                             <button id="check-dns" class="btn-primary btn-sm mt-2">Resolve DNS</button>
                             <div id="dns-check-result" class="mt-3"></div>
                         </div>
-                        
-                        <!-- Geo-IP Tracker -->
                         <div class="widget glass-effect">
                             <h3><i class="fas fa-map-marker-alt"></i> Geo-IP Tracker</h3>
-                            <p class="text-muted">Track IP location and geolocation data</p>
                             <input type="text" id="geo-ip-input" class="form-control" placeholder="Enter IP address">
                             <button id="track-geo-ip" class="btn-primary btn-sm mt-2">Track Location</button>
                             <div id="geo-track-result" class="mt-3"></div>
                         </div>
                     </div>
-                    
-                    <!-- Security Events Log -->
                     <div class="widget glass-effect mt-4">
                         <h3><i class="fas fa-history"></i> Security Events Log</h3>
-                        <div id="security-events-list" class="security-events-list">
-                            <div class="text-muted text-center p-4">Loading security events...</div>
-                        </div>
+                        <div id="security-events-list"></div>
                     </div>
                 </div>
                 
@@ -408,153 +391,48 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
+    <!-- Critical Fix Script - MUST RUN FIRST -->
+    <script>
+        // CRITICAL FIX: Ensure auth container stays visible until user is logged in
+        (function() {
+            // Store original state
+            window._authContainerVisible = true;
+            
+            // Force auth container to be visible on page load
+            const forceAuthVisibility = function() {
+                const authContainer = document.getElementById('auth-container');
+                const appContainer = document.getElementById('app-container');
+                
+                if (authContainer) {
+                    authContainer.style.display = 'flex';
+                    authContainer.style.visibility = 'visible';
+                    authContainer.style.opacity = '1';
+                    authContainer.style.position = 'fixed';
+                    authContainer.style.top = '0';
+                    authContainer.style.left = '0';
+                    authContainer.style.width = '100%';
+                    authContainer.style.height = '100%';
+                    authContainer.style.zIndex = '999999';
+                }
+                
+                if (appContainer) {
+                    appContainer.style.display = 'none';
+                }
+            };
+            
+            // Run immediately
+            forceAuthVisibility();
+            
+            // Also run after DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', forceAuthVisibility);
+            } else {
+                forceAuthVisibility();
+            }
+        })();
+    </script>
+    
     <!-- Custom Scripts -->
     <script type="module" src="js/app.js"></script>
-
-    <!-- Ensure all dependencies are loaded -->
-    <script>
-        // Check if Firebase is loaded
-        if (typeof firebase === 'undefined') {
-            console.error('Firebase failed to load');
-            alert('Failed to load Firebase. Please check your internet connection.');
-        }
-        
-        // Handle service worker registration error gracefully
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(err => {
-                console.log('ServiceWorker registration failed: ', err);
-                // Don't show error to user - it's not critical
-            });
-        }
-
-        // Prevent service worker errors from showing in console
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(() => {
-                // Silently fail - not critical
-            });
-        }
-        
-        // Suppress Firebase persistence warnings
-        const originalConsoleWarn = console.warn;
-        console.warn = function(...args) {
-            if (args[0] && typeof args[0] === 'string') {
-                if (args[0].includes('enableIndexedDbPersistence will be deprecated') ||
-                    args[0].includes('enableMultiTabIndexedDbPersistence will be deprecated')) {
-                    return;
-                }
-            }
-            originalConsoleWarn.apply(console, args);
-        };
-        
-        // Ensure auth container is visible on page load
-        window.addEventListener('load', () => {
-            const authContainer = document.getElementById('auth-container');
-            const appContainer = document.getElementById('app-container');
-            const user = firebase.auth().currentUser;
-            
-            if (!user) {
-                if (authContainer) authContainer.style.display = 'flex';
-                if (appContainer) appContainer.style.display = 'none';
-            }
-        });
-
-        // Register service worker with error handling
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                })
-                .catch(error => {
-                    console.log('ServiceWorker registration failed: ', error.message);
-                    // Don't show error to user - service worker is optional
-                });
-        }
-        
-        // Suppress service worker cache errors in console
-        const originalError = console.error;
-        console.error = function(...args) {
-            if (args[0] && typeof args[0] === 'string') {
-                if (args[0].includes('Failed to execute \'put\' on \'Cache\'') ||
-                    args[0].includes('Request scheme \'chrome-extension\' is unsupported')) {
-                    return;
-                }
-            }
-            originalError.apply(console, args);
-        };
-
-        // Ensure auth container is visible on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const authContainer = document.getElementById('auth-container');
-            const appContainer = document.getElementById('app-container');
-            
-            // Force auth container to be visible initially
-            if (authContainer) {
-                authContainer.style.display = 'flex';
-                authContainer.style.visibility = 'visible';
-                authContainer.style.opacity = '1';
-            }
-            
-            if (appContainer) {
-                appContainer.style.display = 'none';
-            }
-            
-            // Check if user is already logged in
-            firebase.auth().onAuthStateChanged(function(user) {
-                if (user) {
-                    // User is logged in, hide auth, show app
-                    if (authContainer) authContainer.style.display = 'none';
-                    if (appContainer) appContainer.style.display = 'block';
-                } else {
-                    // User is not logged in, show auth, hide app
-                    if (authContainer) authContainer.style.display = 'flex';
-                    if (appContainer) appContainer.style.display = 'none';
-                }
-            });
-        });
-        
-        // Fix for any z-index issues
-        const style = document.createElement('style');
-        style.textContent = `
-            .auth-container {
-                display: flex !important;
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                min-height: 100vh !important;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-                z-index: 10000 !important;
-            }
-            
-            .auth-wrapper {
-                width: 100% !important;
-                max-width: 450px !important;
-                margin: auto !important;
-                padding: 20px !important;
-            }
-            
-            .auth-card {
-                background: rgba(255, 255, 255, 0.95) !important;
-                backdrop-filter: blur(10px) !important;
-                border-radius: 20px !important;
-                padding: 40px !important;
-                box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2) !important;
-            }
-            
-            body.dark-mode .auth-card {
-                background: rgba(10, 14, 26, 0.95) !important;
-            }
-            
-            .auth-form {
-                display: none !important;
-            }
-            
-            .auth-form.active {
-                display: block !important;
-            }
-        `;
-        document.head.appendChild(style);
-    </script>
 </body>
 </html>
