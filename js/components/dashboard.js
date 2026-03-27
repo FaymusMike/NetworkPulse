@@ -1,6 +1,7 @@
-// js/components/dashboard.js - COMPLETE with all features + fixes
+// js/components/dashboard.js - COMPLETE with ALL features preserved + fixes
 import { db, rtdb } from '../config/firebase-config.js';
 import { authManager } from '../auth/auth.js';
+import { offlineSync } from '../utils/offline-sync.js';
 
 class DashboardManager {
     constructor() {
@@ -115,7 +116,6 @@ class DashboardManager {
             // Keeping for future enhancements
         }
     }
-
 
     async loadNetworkHealth() {
         try {
@@ -265,6 +265,7 @@ class DashboardManager {
     }
 
     formatAlertTime(date) {
+        if (!date) return 'Just now';
         const now = new Date();
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
@@ -300,6 +301,12 @@ class DashboardManager {
     initializeTrafficChart() {
         const ctx = document.getElementById('traffic-chart');
         if (!ctx) return;
+        
+        // Destroy existing chart if it exists to prevent Canvas error
+        if (this.trafficChart) {
+            this.trafficChart.destroy();
+            this.trafficChart = null;
+        }
         
         this.trafficChart = new Chart(ctx, {
             type: 'line',
@@ -406,28 +413,34 @@ class DashboardManager {
         }
     }
 
-    updateNotificationBadge() {
+    updateNotificationBadge(increment = true) {
         const badge = document.getElementById('notification-count');
         if (badge) {
-            this.alertCount++;
-            badge.textContent = this.alertCount;
-            badge.style.display = 'block';
-            
-            // Animate badge
-            gsap.to(badge, {
-                scale: 1.2,
-                duration: 0.2,
-                yoyo: true,
-                repeat: 1,
-                onComplete: () => {
-                    badge.classList.add('pulse');
-                }
-            });
-            
-            // Reset pulse after 2 seconds
-            setTimeout(() => {
-                badge.classList.remove('pulse');
-            }, 2000);
+            if (increment) {
+                this.alertCount++;
+                badge.textContent = this.alertCount;
+                badge.style.display = 'block';
+                
+                // Animate badge
+                gsap.to(badge, {
+                    scale: 1.2,
+                    duration: 0.2,
+                    yoyo: true,
+                    repeat: 1,
+                    onComplete: () => {
+                        badge.classList.add('pulse');
+                    }
+                });
+                
+                // Reset pulse after 2 seconds
+                setTimeout(() => {
+                    badge.classList.remove('pulse');
+                }, 2000);
+            } else {
+                this.alertCount = 0;
+                badge.textContent = '0';
+                badge.style.display = 'none';
+            }
         }
     }
 

@@ -430,6 +430,35 @@
                 forceAuthVisibility();
             }
         })();
+
+        // Ensure proper auth redirect after login
+        window.addEventListener('load', function() {
+            // Check if user is logged in on page load
+            firebase.auth().onAuthStateChanged(function(user) {
+                const authContainer = document.getElementById('auth-container');
+                const appContainer = document.getElementById('app-container');
+                
+                if (user) {
+                    // User is logged in - show app
+                    if (authContainer) authContainer.style.display = 'none';
+                    if (appContainer) appContainer.style.display = 'block';
+                    
+                    // Force dashboard navigation
+                    setTimeout(() => {
+                        if (window.app && window.app.navigateTo) {
+                            window.app.navigateTo('dashboard');
+                        }
+                    }, 100);
+                } else {
+                    // User is not logged in - show auth
+                    if (authContainer) {
+                        authContainer.style.display = 'flex';
+                        authContainer.style.visibility = 'visible';
+                    }
+                    if (appContainer) appContainer.style.display = 'none';
+                }
+            });
+        });
     </script>
     
     <!-- Custom Scripts -->

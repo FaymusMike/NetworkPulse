@@ -1,4 +1,4 @@
-// js/auth/auth.js - COMPLETE FIXED VERSION
+// js/auth/auth.js - COMPLETE FIXED VERSION with proper redirect
 import { auth, db, initDefaultData } from '../config/firebase-config.js';
 
 class AuthManager {
@@ -10,7 +10,6 @@ class AuthManager {
     }
 
     setupAuthListener() {
-        // Listen for auth state changes
         auth.onAuthStateChanged(async (user) => {
             console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user');
             
@@ -33,7 +32,6 @@ class AuthManager {
                 this.userRole = userDoc.data().role || 'viewer';
                 console.log('User role loaded:', this.userRole);
             } else {
-                // Create new user profile
                 const role = 'viewer';
                 await db.collection('users').doc(user.uid).set({
                     name: user.displayName || user.email.split('@')[0],
@@ -44,8 +42,6 @@ class AuthManager {
                 });
                 this.userRole = role;
                 console.log('New user profile created');
-                
-                // Initialize default data
                 await initDefaultData(user.uid);
             }
         } catch (error) {
@@ -134,22 +130,24 @@ class AuthManager {
     }
 
     onAuthSuccess() {
-        // Hide auth container
+        // Hide auth container, show app container
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
         
         if (authContainer) {
             authContainer.style.display = 'none';
+            authContainer.style.visibility = 'hidden';
         }
         if (appContainer) {
             appContainer.style.display = 'block';
+            appContainer.style.visibility = 'visible';
         }
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
         }
         
-        // Update user info
+        // Update user info in sidebar
         const userNameEl = document.getElementById('user-name');
         const userRoleEl = document.getElementById('user-role');
         
@@ -162,14 +160,19 @@ class AuthManager {
             userRoleEl.textContent = this.userRole?.toUpperCase() || 'VIEWER';
         }
         
-        // Dispatch event
+        // Dispatch user logged in event
         window.dispatchEvent(new CustomEvent('userLoggedIn', { 
             detail: { user: this.currentUser, role: this.userRole } 
         }));
+        
+        // Force navigation to dashboard
+        if (window.app && window.app.navigateTo) {
+            window.app.navigateTo('dashboard');
+        }
     }
 
     onAuthFailure() {
-        // Show auth container
+        // Show auth container, hide app container
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
@@ -186,7 +189,7 @@ class AuthManager {
             loadingOverlay.style.display = 'none';
         }
         
-        // Reset forms
+        // Reset forms to default state
         const loginForm = document.getElementById('login-form');
         const signupForm = document.getElementById('signup-form');
         const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
@@ -196,6 +199,10 @@ class AuthManager {
         if (signupForm) signupForm.classList.remove('active');
         if (loginTab) loginTab.classList.add('active');
         if (signupTab) signupTab.classList.remove('active');
+        
+        // Clear any input values
+        const inputs = document.querySelectorAll('#login-form input, #signup-form input');
+        inputs.forEach(input => input.value = '');
     }
 
     showToast(message, type) {
