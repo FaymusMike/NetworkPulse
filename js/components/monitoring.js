@@ -1,5 +1,4 @@
 // js/components/monitoring.js - COMPLETE FIXED VERSION
-// ADDED: Proper imports at the top
 import { db, rtdb } from '../config/firebase-config.js';
 import { offlineSync } from '../utils/offline-sync.js';
 import { authManager } from '../auth/auth.js';
@@ -9,16 +8,26 @@ class MonitoringManager {
         this.bandwidthChart = null;
         this.latencyChart = null;
         this.packetLossChart = null;
-        this.metrics = {
-            bandwidth: [],
-            latency: [],
-            packetLoss: []
-        };
+        this.metrics = { bandwidth: [], latency: [], packetLoss: [] };
         this.updateInterval = null;
         this.isLocalUpdate = false;
+        this.isInitialized = false;
     }
 
     initialize() {
+        if (this.isInitialized) return;
+        this.isInitialized = true;
+        
+        // Check if chart canvases exist
+        const bandwidthCanvas = document.getElementById('bandwidth-chart');
+        const latencyCanvas = document.getElementById('latency-chart');
+        const packetLossCanvas = document.getElementById('packet-loss-chart');
+        
+        if (!bandwidthCanvas || !latencyCanvas || !packetLossCanvas) {
+            console.error('[Monitoring] Chart canvases not found');
+            return;
+        }
+        
         this.initializeCharts();
         this.loadHistoricalMetrics();
         this.startMonitoring();
@@ -31,13 +40,7 @@ class MonitoringManager {
             animation: { duration: 0 },
             plugins: {
                 legend: { labels: { color: '#fff', font: { size: 12 } } },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    titleColor: '#00d4ff',
-                    bodyColor: '#fff'
-                }
+                tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(0,0,0,0.8)', titleColor: '#00d4ff', bodyColor: '#fff' }
             },
             scales: {
                 y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff' } },
@@ -45,13 +48,10 @@ class MonitoringManager {
             }
         };
         
-        // Bandwidth Chart - FIXED: Destroy existing chart before creating new
+        // Bandwidth Chart
         const bandwidthCtx = document.getElementById('bandwidth-chart');
         if (bandwidthCtx) {
-            if (this.bandwidthChart) {
-                this.bandwidthChart.destroy();
-                this.bandwidthChart = null;
-            }
+            if (this.bandwidthChart) this.bandwidthChart.destroy();
             this.bandwidthChart = new Chart(bandwidthCtx, {
                 type: 'line',
                 data: { labels: [], datasets: [{ label: 'Bandwidth (Mbps)', data: [], borderColor: '#00d4ff', backgroundColor: 'rgba(0, 212, 255, 0.1)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 0, pointHoverRadius: 6 }] },
@@ -59,13 +59,10 @@ class MonitoringManager {
             });
         }
         
-        // Latency Chart - FIXED: Destroy existing chart before creating new
+        // Latency Chart
         const latencyCtx = document.getElementById('latency-chart');
         if (latencyCtx) {
-            if (this.latencyChart) {
-                this.latencyChart.destroy();
-                this.latencyChart = null;
-            }
+            if (this.latencyChart) this.latencyChart.destroy();
             this.latencyChart = new Chart(latencyCtx, {
                 type: 'line',
                 data: { labels: [], datasets: [{ label: 'Latency (ms)', data: [], borderColor: '#ffd93d', backgroundColor: 'rgba(255, 217, 61, 0.1)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 0, pointHoverRadius: 6 }] },
@@ -73,13 +70,10 @@ class MonitoringManager {
             });
         }
         
-        // Packet Loss Chart - FIXED: Destroy existing chart before creating new
+        // Packet Loss Chart
         const packetLossCtx = document.getElementById('packet-loss-chart');
         if (packetLossCtx) {
-            if (this.packetLossChart) {
-                this.packetLossChart.destroy();
-                this.packetLossChart = null;
-            }
+            if (this.packetLossChart) this.packetLossChart.destroy();
             this.packetLossChart = new Chart(packetLossCtx, {
                 type: 'line',
                 data: { labels: [], datasets: [{ label: 'Packet Loss (%)', data: [], borderColor: '#ff4757', backgroundColor: 'rgba(255, 71, 87, 0.1)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 0, pointHoverRadius: 6 }] },
@@ -102,14 +96,12 @@ class MonitoringManager {
                 };
                 const maxPoints = 60;
                 Object.keys(this.metrics).forEach(key => {
-                    if (this.metrics[key].length > maxPoints) {
-                        this.metrics[key] = this.metrics[key].slice(-maxPoints);
-                    }
+                    if (this.metrics[key].length > maxPoints) this.metrics[key] = this.metrics[key].slice(-maxPoints);
                 });
                 this.updateCharts();
             }
         } catch (error) {
-            console.error('Error loading historical metrics:', error);
+            console.error('[Monitoring] Error loading historical metrics:', error);
         }
     }
 
@@ -125,11 +117,7 @@ class MonitoringManager {
         rtdb.ref('metrics').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data && !this.isLocalUpdate) {
-                this.metrics = {
-                    bandwidth: data.bandwidth || [],
-                    latency: data.latency || [],
-                    packetLoss: data.packetLoss || []
-                };
+                this.metrics = { bandwidth: data.bandwidth || [], latency: data.latency || [], packetLoss: data.packetLoss || [] };
                 this.updateCharts();
             }
             this.isLocalUpdate = false;
@@ -138,12 +126,9 @@ class MonitoringManager {
 
     generateMetrics() {
         const timestamp = new Date().toLocaleTimeString();
-        
         let bandwidth = Math.random() * 100 + 50;
         if (Math.random() < 0.05) bandwidth += Math.random() * 200;
-        
         let latency = 10 + (bandwidth / 150) * 40 + Math.random() * 10;
-        
         let packetLoss = Math.random() * 2;
         if (latency > 60) packetLoss += Math.random() * 5;
         
@@ -153,9 +138,7 @@ class MonitoringManager {
         
         const maxPoints = 60;
         Object.keys(this.metrics).forEach(key => {
-            if (this.metrics[key].length > maxPoints) {
-                this.metrics[key] = this.metrics[key].slice(-maxPoints);
-            }
+            if (this.metrics[key].length > maxPoints) this.metrics[key] = this.metrics[key].slice(-maxPoints);
         });
         
         this.checkAnomalies(bandwidth, latency, packetLoss);
@@ -170,16 +153,9 @@ class MonitoringManager {
                 packetLoss: this.metrics.packetLoss,
                 lastUpdated: Date.now()
             });
-            
-            if (!navigator.onLine) {
-                await offlineSync.saveMetricsOffline({
-                    bandwidth: this.metrics.bandwidth,
-                    latency: this.metrics.latency,
-                    packetLoss: this.metrics.packetLoss
-                });
-            }
+            if (!navigator.onLine) await offlineSync.saveMetricsOffline({ bandwidth: this.metrics.bandwidth, latency: this.metrics.latency, packetLoss: this.metrics.packetLoss });
         } catch (error) {
-            console.error('Error updating metrics:', error);
+            console.error('[Monitoring] Error updating metrics:', error);
         }
     }
 
@@ -189,13 +165,11 @@ class MonitoringManager {
             this.bandwidthChart.data.datasets[0].data = this.metrics.bandwidth.map(m => m.y);
             this.bandwidthChart.update('none');
         }
-        
         if (this.latencyChart && this.metrics.latency.length > 0) {
             this.latencyChart.data.labels = this.metrics.latency.map(m => m.x);
             this.latencyChart.data.datasets[0].data = this.metrics.latency.map(m => m.y);
             this.latencyChart.update('none');
         }
-        
         if (this.packetLossChart && this.metrics.packetLoss.length > 0) {
             this.packetLossChart.data.labels = this.metrics.packetLoss.map(m => m.x);
             this.packetLossChart.data.datasets[0].data = this.metrics.packetLoss.map(m => m.y);
@@ -204,46 +178,30 @@ class MonitoringManager {
     }
 
     checkAnomalies(bandwidth, latency, packetLoss) {
-        if (bandwidth > 250) {
-            this.createAlert('critical', 'High Bandwidth Usage', `Bandwidth usage is at ${Math.round(bandwidth)} Mbps, approaching network capacity.`);
-        } else if (latency > 100) {
-            this.createAlert('warning', 'High Latency Detected', `Network latency is at ${Math.round(latency)} ms, affecting performance.`);
-        } else if (packetLoss > 5) {
-            this.createAlert('critical', 'Packet Loss Detected', `Packet loss is at ${packetLoss.toFixed(1)}%, indicating network issues.`);
-        }
+        if (bandwidth > 250) this.createAlert('critical', 'High Bandwidth Usage', `Bandwidth usage is at ${Math.round(bandwidth)} Mbps, approaching network capacity.`);
+        else if (latency > 100) this.createAlert('warning', 'High Latency Detected', `Network latency is at ${Math.round(latency)} ms, affecting performance.`);
+        else if (packetLoss > 5) this.createAlert('critical', 'Packet Loss Detected', `Packet loss is at ${packetLoss.toFixed(1)}%, indicating network issues.`);
         this.updateNetworkHealth(bandwidth, latency, packetLoss);
     }
 
-    // FIXED: Added null check for db
     async createAlert(severity, title, message) {
         try {
-            // CRITICAL FIX: Check if db exists before using it
-            if (typeof db === 'undefined' || !db) {
-                console.error('[Monitoring] Firestore db not available - alert not saved');
-                this.showToast(message, severity);
-                return;
+            if (typeof db !== 'undefined' && db) {
+                await db.collection('alerts').add({
+                    title, message, severity,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    resolved: false
+                });
             }
-            
-            await db.collection('alerts').add({
-                title: title,
-                message: message,
-                severity: severity,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                resolved: false
-            });
-            
             this.showToast(message, severity);
-            
             const badge = document.getElementById('notification-count');
             if (badge) {
                 const currentCount = parseInt(badge.textContent) || 0;
                 badge.textContent = currentCount + 1;
                 badge.style.display = 'block';
-                badge.classList.add('pulse');
-                setTimeout(() => badge.classList.remove('pulse'), 2000);
             }
         } catch (error) {
-            console.error('Error creating alert:', error);
+            console.error('[Monitoring] Error creating alert:', error);
             this.showToast(message, severity);
         }
     }
@@ -262,68 +220,27 @@ class MonitoringManager {
             else if (healthScore < 95) healthStatus = 'Degraded';
             
             await rtdb.ref('networkStatus').update({
-                healthScore: healthScore,
-                healthStatus: healthStatus,
-                lastUpdated: Date.now(),
-                metrics: {
-                    bandwidth: Math.round(bandwidth),
-                    latency: Math.round(latency),
-                    packetLoss: packetLoss.toFixed(1)
-                }
+                healthScore, healthStatus, lastUpdated: Date.now(),
+                metrics: { bandwidth: Math.round(bandwidth), latency: Math.round(latency), packetLoss: packetLoss.toFixed(1) }
             });
         } catch (error) {
-            console.error('Error updating network health:', error);
+            console.error('[Monitoring] Error updating network health:', error);
         }
     }
 
     showToast(message, type) {
         const toastContainer = document.getElementById('toast-container');
         if (!toastContainer) return;
-        
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <i class="fas ${type === 'critical' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-            <button class="toast-close">&times;</button>
-        `;
-        
-        const closeBtn = toast.querySelector('.toast-close');
-        if (closeBtn) closeBtn.onclick = () => toast.remove();
-        
+        toast.innerHTML = `<i class="fas ${type === 'critical' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i><span>${message}</span><button class="toast-close">&times;</button>`;
+        toast.querySelector('.toast-close').onclick = () => toast.remove();
         toastContainer.appendChild(toast);
-        
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }
-        }, 5000);
-    }
-
-    updateMetric(metric) {
-        if (metric.type === 'bandwidth') {
-            this.metrics.bandwidth.push({ x: new Date().toLocaleTimeString(), y: metric.value });
-            if (this.metrics.bandwidth.length > 60) this.metrics.bandwidth.shift();
-        } else if (metric.type === 'latency') {
-            this.metrics.latency.push({ x: new Date().toLocaleTimeString(), y: metric.value });
-            if (this.metrics.latency.length > 60) this.metrics.latency.shift();
-        } else if (metric.type === 'packetLoss') {
-            this.metrics.packetLoss.push({ x: new Date().toLocaleTimeString(), y: metric.value });
-            if (this.metrics.packetLoss.length > 60) this.metrics.packetLoss.shift();
-        }
-        this.updateCharts();
-    }
-
-    updateChartType(type) {
-        console.log('[Monitoring] Chart type updated:', type);
+        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
     }
 
     stopMonitoring() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-        }
+        if (this.updateInterval) { clearInterval(this.updateInterval); this.updateInterval = null; }
     }
 }
 
