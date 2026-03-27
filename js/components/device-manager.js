@@ -60,6 +60,12 @@ class DeviceManager {
         }
     }
 
+    async loadMoreDevices() {
+        if (this.hasMore && navigator.onLine) {
+            await this.loadDevices(false);
+        }
+    }
+
     renderDevicesTable() {
         const container = document.getElementById('devices-table-container');
         if (!container) return;
