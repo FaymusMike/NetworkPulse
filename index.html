@@ -459,6 +459,66 @@
                 }
             });
         });
+
+        // Ensure proper auth redirect on page load
+        (function() {
+            // Wait for Firebase to initialize
+            firebase.auth().onAuthStateChanged(function(user) {
+                const authContainer = document.getElementById('auth-container');
+                const appContainer = document.getElementById('app-container');
+                
+                if (user) {
+                    console.log('Page load - User already logged in:', user.email);
+                    // User is logged in - show app, hide auth
+                    if (authContainer) {
+                        authContainer.style.display = 'none';
+                        authContainer.style.visibility = 'hidden';
+                    }
+                    if (appContainer) {
+                        appContainer.style.display = 'block';
+                        appContainer.style.visibility = 'visible';
+                    }
+                    
+                    // Update user info if elements exist
+                    const userNameEl = document.getElementById('user-name');
+                    const userRoleEl = document.getElementById('user-role');
+                    
+                    if (userNameEl) {
+                        userNameEl.textContent = user.displayName || user.email.split('@')[0];
+                    }
+                    
+                    // Try to get user role from Firestore
+                    if (window.db) {
+                        window.db.collection('users').doc(user.uid).get().then(doc => {
+                            if (doc.exists && userRoleEl) {
+                                userRoleEl.textContent = doc.data().role?.toUpperCase() || 'VIEWER';
+                            }
+                        }).catch(err => console.log('Error getting role:', err));
+                    }
+                } else {
+                    console.log('Page load - No user logged in');
+                    // User is not logged in - show auth, hide app
+                    if (authContainer) {
+                        authContainer.style.display = 'flex';
+                        authContainer.style.visibility = 'visible';
+                    }
+                    if (appContainer) {
+                        appContainer.style.display = 'none';
+                    }
+                }
+            });
+            
+            // Also add a small delay to ensure everything is loaded
+            setTimeout(function() {
+                const user = firebase.auth().currentUser;
+                if (user) {
+                    const authContainer = document.getElementById('auth-container');
+                    const appContainer = document.getElementById('app-container');
+                    if (authContainer) authContainer.style.display = 'none';
+                    if (appContainer) appContainer.style.display = 'block';
+                }
+            }, 500);
+        })();
     </script>
     
     <!-- Custom Scripts -->

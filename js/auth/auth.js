@@ -130,19 +130,26 @@ class AuthManager {
     }
 
     onAuthSuccess() {
-        // Hide auth container, show app container
+        console.log('onAuthSuccess called - User logged in:', this.currentUser?.email);
+        
+        // Get DOM elements
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
         
+        // CRITICAL: Hide auth container, show app container
         if (authContainer) {
             authContainer.style.display = 'none';
             authContainer.style.visibility = 'hidden';
+            authContainer.style.opacity = '0';
         }
+        
         if (appContainer) {
             appContainer.style.display = 'block';
             appContainer.style.visibility = 'visible';
+            appContainer.style.opacity = '1';
         }
+        
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
         }
@@ -156,35 +163,55 @@ class AuthManager {
                                      this.currentUser?.email?.split('@')[0] || 
                                      'User';
         }
+        
         if (userRoleEl) {
             userRoleEl.textContent = this.userRole?.toUpperCase() || 'VIEWER';
         }
         
-        // Dispatch user logged in event
-        window.dispatchEvent(new CustomEvent('userLoggedIn', { 
+        // Dispatch user logged in event for other components
+        const event = new CustomEvent('userLoggedIn', { 
             detail: { user: this.currentUser, role: this.userRole } 
-        }));
+        });
+        window.dispatchEvent(event);
         
         // Force navigation to dashboard
-        if (window.app && window.app.navigateTo) {
-            window.app.navigateTo('dashboard');
-        }
+        setTimeout(() => {
+            if (window.app && typeof window.app.navigateTo === 'function') {
+                console.log('Navigating to dashboard via app.navigateTo');
+                window.app.navigateTo('dashboard');
+            } else if (window.location) {
+                console.log('Refreshing page to load dashboard');
+                window.location.reload();
+            }
+        }, 100);
+        
+        // Also try to trigger dashboard refresh directly
+        setTimeout(() => {
+            if (window.dashboardManager && typeof window.dashboardManager.refresh === 'function') {
+                window.dashboardManager.refresh();
+            }
+        }, 200);
     }
 
     onAuthFailure() {
-        // Show auth container, hide app container
+        console.log('onAuthFailure called - No user logged in');
+        
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
         
+        // Show auth container
         if (authContainer) {
             authContainer.style.display = 'flex';
             authContainer.style.visibility = 'visible';
             authContainer.style.opacity = '1';
         }
+        
+        // Hide app container
         if (appContainer) {
             appContainer.style.display = 'none';
         }
+        
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
         }
@@ -202,7 +229,9 @@ class AuthManager {
         
         // Clear any input values
         const inputs = document.querySelectorAll('#login-form input, #signup-form input');
-        inputs.forEach(input => input.value = '');
+        inputs.forEach(input => {
+            if (input) input.value = '';
+        });
     }
 
     showToast(message, type) {
@@ -218,7 +247,9 @@ class AuthManager {
         toastContainer.appendChild(toast);
         
         setTimeout(() => {
-            toast.remove();
+            if (toast.parentNode) {
+                toast.remove();
+            }
         }, 3000);
     }
 
