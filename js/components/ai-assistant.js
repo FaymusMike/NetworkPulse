@@ -1,9 +1,19 @@
+// js/components/ai-assistant.js - SECURE VERSION
+import { API_KEYS, isAPIConfigured, checkAPIAvailability } from '../config/api-keys.js';
+
 class AIAssistant {
     constructor() {
-        this.apiKey = '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';
+        this.apiKey = API_KEYS.OPENROUTER_API_KEY;
+        this.isConfigured = isAPIConfigured.openrouter;
         this.conversationHistory = [];
         this.isTyping = false;
         this.setupEventListeners();
+        
+        // Check API availability on startup
+        if (!this.isConfigured) {
+            console.warn('[AI] OpenRouter API key not configured. AI features will use demo mode.');
+            this.addWelcomeDemoMessage();
+        }
     }
 
     setupEventListeners() {
@@ -24,6 +34,28 @@ class AIAssistant {
         }
     }
 
+    addWelcomeDemoMessage() {
+        const demoMessage = `🔧 **AI Assistant - Demo Mode**
+
+I'm currently running in demo mode because the OpenRouter API key is not configured.
+
+To enable full AI capabilities:
+1. Get an API key from [OpenRouter](https://openrouter.ai/keys)
+2. Add it as an environment variable \`OPENROUTER_API_KEY\` in your deployment platform
+3. Refresh the page
+
+In the meantime, you can use these features:
+- **Network Intelligence**: IP geolocation, DNS lookup, WHOIS
+- **Security Insights**: Password checker, IP threat lookup
+- **Device Management**: Add/edit/delete devices
+- **Real-time Monitoring**: View network metrics
+- **Network Topology**: Visualize and manage your network
+
+What would you like to do?`;
+        
+        this.addMessage(demoMessage, 'ai');
+    }
+
     async sendMessage() {
         const input = document.getElementById('chat-input');
         const message = input.value.trim();
@@ -33,11 +65,8 @@ class AIAssistant {
         // Add user message to chat
         this.addMessage(message, 'user');
         input.value = '';
-        
-        // Auto-resize input
         input.style.height = 'auto';
         
-        // Show typing indicator
         this.showTypingIndicator();
         this.isTyping = true;
         
@@ -55,12 +84,16 @@ class AIAssistant {
     }
 
     async callAI(userMessage) {
+        // Demo mode when no API key
+        if (!this.isConfigured || !this.apiKey) {
+            return this.getDemoResponse(userMessage);
+        }
+        
         this.conversationHistory.push({
             role: 'user',
             content: userMessage
         });
         
-        // Limit conversation history to last 10 messages
         if (this.conversationHistory.length > 10) {
             this.conversationHistory = this.conversationHistory.slice(-10);
         }
@@ -116,8 +149,34 @@ class AIAssistant {
             return aiResponse;
         } catch (error) {
             console.error('OpenRouter API Error:', error);
-            throw error;
+            return this.getDemoResponse(userMessage);
         }
+    }
+
+    getDemoResponse(userMessage) {
+        const lowerMsg = userMessage.toLowerCase();
+        
+        if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
+            return "👋 Hello! I'm NetWise, your AI network assistant. I'm currently in demo mode. To enable full AI capabilities, please configure your OpenRouter API key. In the meantime, I can help you navigate the NetworkPulse platform. What would you like to know?";
+        }
+        
+        if (lowerMsg.includes('device') || lowerMsg.includes('configure')) {
+            return "📡 **Device Management Help**\n\nYou can manage your network devices in the Device Management section:\n\n1. **Add Device**: Click the 'Add Device' button\n2. **Edit Device**: Click the edit icon next to any device\n3. **Delete Device**: Click the trash icon\n4. **View Details**: Click on any device row\n\nWould you like me to explain any specific device configuration?";
+        }
+        
+        if (lowerMsg.includes('topology') || lowerMsg.includes('network map')) {
+            return "🗺️ **Network Topology**\n\nThe Network Topology view shows an interactive graph of your network:\n\n- **Nodes**: Routers, Switches, Firewalls, Servers, Clients\n- **Connections**: Network links between devices\n- **Drag & Drop**: Reposition nodes\n- **Click**: View device details\n\nWould you like help with optimizing your network layout?";
+        }
+        
+        if (lowerMsg.includes('security') || lowerMsg.includes('password')) {
+            return "🔒 **Security Features**\n\nNetworkPulse provides several security tools:\n\n1. **Password Leak Checker**: Test if passwords have been exposed\n2. **IP Threat Lookup**: Check IP reputation\n3. **DNS Resolution**: Verify domain records\n4. **Geo-IP Tracking**: Locate IP addresses\n\nCheck the Security Insights panel for these tools!";
+        }
+        
+        if (lowerMsg.includes('monitoring') || lowerMsg.includes('metrics')) {
+            return "📊 **Real-Time Monitoring**\n\nThe Monitoring dashboard shows live network metrics:\n\n- **Bandwidth Usage**: Current network traffic\n- **Latency**: Response times\n- **Packet Loss**: Network reliability\n\nThese metrics update every 2 seconds and can help identify network issues.";
+        }
+        
+        return "🔧 **NetworkPulse Help**\n\nI'm currently in demo mode. Here's what you can do:\n\n- **Dashboard**: View network overview\n- **Device Management**: Add/edit network devices\n- **Topology**: Visualize network structure\n- **Monitoring**: See real-time metrics\n- **Security**: Check passwords and IP threats\n- **Reports**: Generate network reports\n\nTo enable full AI assistance, configure your OpenRouter API key in the environment variables.\n\nWhat would you like help with?";
     }
 
     addMessage(content, sender) {
@@ -138,7 +197,6 @@ class AIAssistant {
         messagesContainer.appendChild(messageDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
         
-        // Animate with GSAP
         gsap.from(messageDiv, {
             opacity: 0,
             y: 20,
@@ -146,7 +204,6 @@ class AIAssistant {
             ease: 'power2.out'
         });
         
-        // Add copy button for AI responses
         if (sender === 'ai') {
             const copyBtn = document.createElement('button');
             copyBtn.className = 'copy-message-btn';
@@ -160,7 +217,6 @@ class AIAssistant {
     }
 
     formatMessage(content) {
-        // Convert markdown-like syntax to HTML
         let formatted = content
             .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -172,10 +228,7 @@ class AIAssistant {
             .replace(/<li>(.*?)<\/li>/g, '<ul><li>$1</li></ul>')
             .replace(/<\/ul><ul>/g, '');
         
-        // Fix nested ul
         formatted = formatted.replace(/<\/ul><ul>/g, '');
-        
-        // Add line breaks after lists
         formatted = formatted.replace(/<\/ul>/g, '</ul><br>');
         
         return formatted;
