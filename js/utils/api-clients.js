@@ -1,17 +1,14 @@
-// js/utils/api-clients.js - SECURE VERSION
-import { API_KEYS, isAPIConfigured } from '../config/api-keys.js';
-
 class APIClients {
     constructor() {
-        // Get API keys from secure config
-        this.ipInfoToken = API_KEYS.IPINFO_TOKEN;
-        this.virusTotalKey = API_KEYS.VIRUSTOTAL_API_KEY;
-        this.abuseIPDBKey = API_KEYS.ABUSEIPDB_API_KEY;
+        // Get API keys from global window object
+        this.ipInfoToken = window.getAPIKey ? window.getAPIKey('IPINFO_TOKEN') : null;
+        this.virusTotalKey = window.getAPIKey ? window.getAPIKey('VIRUSTOTAL_API_KEY') : null;
+        this.abuseIPDBKey = window.getAPIKey ? window.getAPIKey('ABUSEIPDB_API_KEY') : null;
         
         // Track which APIs are available
-        this.ipInfoAvailable = isAPIConfigured.ipinfo;
-        this.virusTotalAvailable = isAPIConfigured.virustotal;
-        this.abuseIPDBAvailable = isAPIConfigured.abuseipdb;
+        this.ipInfoAvailable = !!this.ipInfoToken;
+        this.virusTotalAvailable = !!this.virusTotalKey;
+        this.abuseIPDBAvailable = !!this.abuseIPDBKey;
         
         // Log missing APIs
         if (!this.ipInfoAvailable) console.warn('[API] IPInfo token not configured. Geolocation will use demo data.');

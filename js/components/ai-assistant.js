@@ -1,16 +1,11 @@
-import { getAPIKey, isAPIConfigured, checkAPIAvailability } from '../config/api-keys.js';
-
 class AIAssistant {
     constructor() {
-        // Use the new getAPIKey function
-        this.apiKey = getAPIKey('OPENROUTER_API_KEY');
-        this.isConfigured = isAPIConfigured.openrouter;
+        // Get API key from global window object
+        this.apiKey = window.getAPIKey ? window.getAPIKey('OPENROUTER_API_KEY') : null;
+        this.isConfigured = !!this.apiKey;
         this.conversationHistory = [];
         this.isTyping = false;
         this.setupEventListeners();
-        
-        // Check API availability on startup
-        checkAPIAvailability();
         
         if (!this.isConfigured) {
             console.warn('[AI] OpenRouter API key not configured. AI features will use demo mode.');
