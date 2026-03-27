@@ -1,0 +1,7 @@
+{
+  "name": "networkpulse",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node netlify-build.js"
+  }
+}
