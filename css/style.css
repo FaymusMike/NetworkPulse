@@ -1483,14 +1483,33 @@ body.dark-mode .btn-secondary {
     }
 }
 
-/* Ensure page containers are properly displayed */
+/* CRITICAL FIX: Force page visibility */
 .page {
-    display: none;
-    animation: fadeIn 0.3s ease;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    position: relative !important;
+    z-index: 1 !important;
 }
 
 .page.active {
     display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 2 !important;
+}
+
+/* Ensure all page containers have proper dimensions */
+#dashboard-page,
+#topology-page,
+#devices-page,
+#monitoring-page,
+#ai-assistant-page,
+#network-intel-page,
+#security-page,
+#reports-page {
+    min-height: 500px;
+    width: 100%;
 }
 
 /* Loading spinner */
