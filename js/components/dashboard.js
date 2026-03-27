@@ -298,11 +298,12 @@ class DashboardManager {
         return icons[severity] || 'fa-bell';
     }
 
+
     initializeTrafficChart() {
         const ctx = document.getElementById('traffic-chart');
         if (!ctx) return;
         
-        // Destroy existing chart if it exists to prevent Canvas error
+        // CRITICAL FIX: Destroy existing chart before creating new one
         if (this.trafficChart) {
             this.trafficChart.destroy();
             this.trafficChart = null;
@@ -328,20 +329,10 @@ class DashboardManager {
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                animation: {
-                    duration: 0
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
+                animation: { duration: 0 },
+                interaction: { intersect: false, mode: 'index' },
                 plugins: {
-                    legend: {
-                        labels: { 
-                            color: '#fff',
-                            font: { size: 12 }
-                        }
-                    },
+                    legend: { labels: { color: '#fff', font: { size: 12 } } },
                     tooltip: {
                         mode: 'index',
                         intersect: false,
@@ -351,19 +342,8 @@ class DashboardManager {
                     }
                 },
                 scales: {
-                    y: {
-                        grid: { color: 'rgba(255,255,255,0.1)' },
-                        ticks: { color: '#fff' },
-                        title: {
-                            display: true,
-                            text: 'Mbps',
-                            color: '#fff'
-                        }
-                    },
-                    x: {
-                        grid: { color: 'rgba(255,255,255,0.1)' },
-                        ticks: { color: '#fff' }
-                    }
+                    y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff' }, title: { display: true, text: 'Mbps', color: '#fff' } },
+                    x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#fff' } }
                 }
             }
         });

@@ -83,6 +83,21 @@ class App {
         if (user) {
             // User is logged in, ensure app is visible
             this.onUserLoggedIn({ detail: { user: user, role: authManager.userRole } });
+            
+            // CRITICAL FIX: Force hide auth container if still visible
+            const authContainer = document.getElementById('auth-container');
+            const appContainer = document.getElementById('app-container');
+            
+            if (authContainer) {
+                authContainer.style.display = 'none';
+                authContainer.style.visibility = 'hidden';
+                authContainer.style.opacity = '0';
+            }
+            if (appContainer) {
+                appContainer.style.display = 'block';
+                appContainer.style.visibility = 'visible';
+                appContainer.style.opacity = '1';
+            }
         } else {
             // User is not logged in, ensure auth is visible
             this.ensureAuthVisibility();

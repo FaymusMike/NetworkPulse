@@ -138,20 +138,23 @@ class AuthManager {
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
         
-        // CRITICAL: Hide auth container with multiple methods to ensure it works
+        // CRITICAL FIX 1: Force hide auth container with multiple methods
         if (authContainer) {
             authContainer.style.display = 'none';
             authContainer.style.visibility = 'hidden';
             authContainer.style.opacity = '0';
             authContainer.classList.add('hidden');
+            // Also set inline style to override any CSS
+            authContainer.setAttribute('style', 'display: none !important; visibility: hidden !important; opacity: 0 !important;');
         }
         
-        // CRITICAL: Show app container
+        // CRITICAL FIX 2: Force show app container
         if (appContainer) {
             appContainer.style.display = 'block';
             appContainer.style.visibility = 'visible';
             appContainer.style.opacity = '1';
             appContainer.classList.remove('hidden');
+            appContainer.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important;');
         }
         
         if (loadingOverlay) {
@@ -164,8 +167,8 @@ class AuthManager {
         
         if (userNameEl) {
             userNameEl.textContent = this.currentUser?.displayName || 
-                                     this.currentUser?.email?.split('@')[0] || 
-                                     'User';
+                                    this.currentUser?.email?.split('@')[0] || 
+                                    'User';
         }
         
         if (userRoleEl) {
@@ -178,32 +181,70 @@ class AuthManager {
         });
         window.dispatchEvent(event);
         
-        // Force dashboard load with multiple attempts
-        setTimeout(() => {
-            // Attempt 1: Use app.navigateTo
+        // CRITICAL FIX 3: Force navigation with multiple retry attempts
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        const attemptNavigation = () => {
+            attempts++;
+            console.log(`[Auth] Navigation attempt ${attempts}/${maxAttempts}`);
+            
+            // Try different navigation methods
             if (window.app && typeof window.app.navigateTo === 'function') {
-                console.log('[Auth] Navigating to dashboard via app.navigateTo');
+                console.log('[Auth] Navigating via app.navigateTo');
                 window.app.navigateTo('dashboard');
+                return true;
             }
             
-            // Attempt 2: Direct dashboard refresh
             if (window.dashboardManager && typeof window.dashboardManager.refresh === 'function') {
-                console.log('[Auth] Refreshing dashboard directly');
+                console.log('[Auth] Refreshing dashboard via dashboardManager');
                 window.dashboardManager.refresh();
+                return true;
             }
             
-            // Attempt 3: Force page reload if nothing works (fallback)
-            setTimeout(() => {
-                const currentAuthDisplay = authContainer ? authContainer.style.display : 'unknown';
-                const currentAppDisplay = appContainer ? appContainer.style.display : 'unknown';
-                console.log('[Auth] After redirect - Auth display:', currentAuthDisplay, 'App display:', currentAppDisplay);
-                
-                if (appContainer && appContainer.style.display !== 'block') {
-                    console.log('[Auth] App container not visible, forcing reload');
-                    window.location.reload();
+            // Check if dashboard is already visible
+            const dashboardPage = document.getElementById('dashboard-page');
+            if (dashboardPage && dashboardPage.classList.contains('active')) {
+                console.log('[Auth] Dashboard already active');
+                return true;
+            }
+            
+            // Try to manually activate dashboard page
+            const dashboardNav = document.querySelector('.nav-item[data-page="dashboard"]');
+            if (dashboardNav) {
+                console.log('[Auth] Manually clicking dashboard nav');
+                dashboardNav.click();
+                return true;
+            }
+            
+            return false;
+        };
+        
+        // Immediate first attempt
+        if (!attemptNavigation()) {
+            // Set up retry interval
+            const interval = setInterval(() => {
+                if (attemptNavigation() || attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    if (attempts >= maxAttempts) {
+                        console.log('[Auth] Max attempts reached, forcing page reload');
+                        window.location.reload();
+                    }
                 }
             }, 500);
-        }, 100);
+        }
+        
+        // Also set a timeout as final fallback
+        setTimeout(() => {
+            const authDisplay = authContainer ? authContainer.style.display : 'unknown';
+            const appDisplay = appContainer ? appContainer.style.display : 'unknown';
+            console.log(`[Auth] Final check - Auth: ${authDisplay}, App: ${appDisplay}`);
+            
+            if (appContainer && appContainer.style.display !== 'block') {
+                console.log('[Auth] App still not visible, forcing reload');
+                window.location.reload();
+            }
+        }, 2000);
     }
 
     onAuthFailure() {

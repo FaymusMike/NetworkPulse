@@ -338,7 +338,8 @@ body.dark-mode .btn-secondary {
     color: #fff;
 }
 
-/* Ensure proper container visibility */
+
+/* CRITICAL FIX: Ensure auth container hides properly */
 #auth-container {
     position: fixed !important;
     top: 0 !important;
@@ -348,22 +349,29 @@ body.dark-mode .btn-secondary {
     min-height: 100vh !important;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
     z-index: 999999 !important;
+    transition: opacity 0.3s ease !important;
 }
 
 #auth-container.hidden,
 #auth-container[style*="display: none"] {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 #app-container {
     display: none;
     position: relative;
     z-index: 1;
+    transition: opacity 0.3s ease !important;
 }
 
 #app-container.visible,
 #app-container[style*="display: block"] {
     display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* Ensure dashboard page is visible when active */
