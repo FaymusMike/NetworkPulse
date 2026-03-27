@@ -1,4 +1,4 @@
-// js/app.js (COMPLETE - All features preserved with enhancements)
+// js/app.js - COMPLETE FIXED VERSION with proper initialization
 import { authManager } from './auth/auth.js';
 import { topologyManager } from './components/topology.js';
 import { aiAssistant } from './components/ai-assistant.js';
@@ -38,6 +38,8 @@ class App {
         if (this.isInitialized) return;
         this.isInitialized = true;
         
+        console.log('[App] Initializing...');
+        
         // Track performance
         this.performanceMetrics.pageLoadTime = performance.now();
         
@@ -58,10 +60,8 @@ class App {
         // Initialize components that don't require auth
         this.initializeComponents();
         
-        // Check if user is already logged in
-        if (authManager.currentUser) {
-            this.onUserLoggedIn({ detail: { user: authManager.currentUser, role: authManager.userRole } });
-        }
+        // Check if user is already logged in and handle UI accordingly
+        this.checkInitialAuthState();
         
         // Setup keyboard shortcuts
         this.setupKeyboardShortcuts();
@@ -71,14 +71,29 @@ class App {
         
         // Start performance monitoring
         this.startPerformanceMonitoring();
+        
+        // Ensure auth visibility is correct
+        this.ensureAuthVisibility();
     }
 
-    // CRITICAL FIX: Ensure auth container is visible when not logged in
+    checkInitialAuthState() {
+        const user = authManager.currentUser;
+        console.log('[App] Initial auth state check:', user ? `User: ${user.email}` : 'No user');
+        
+        if (user) {
+            // User is logged in, ensure app is visible
+            this.onUserLoggedIn({ detail: { user: user, role: authManager.userRole } });
+        } else {
+            // User is not logged in, ensure auth is visible
+            this.ensureAuthVisibility();
+        }
+    }
+
     ensureAuthVisibility() {
+        const authContainer = document.getElementById('auth-container');
+        const appContainer = document.getElementById('app-container');
+        
         if (!authManager.currentUser) {
-            const authContainer = document.getElementById('auth-container');
-            const appContainer = document.getElementById('app-container');
-            
             if (authContainer) {
                 authContainer.style.display = 'flex';
                 authContainer.style.visibility = 'visible';
@@ -87,11 +102,18 @@ class App {
             if (appContainer) {
                 appContainer.style.display = 'none';
             }
+        } else {
+            if (authContainer) {
+                authContainer.style.display = 'none';
+            }
+            if (appContainer) {
+                appContainer.style.display = 'block';
+            }
         }
     }
 
     setupEventListeners() {
-        // Auth form handling with better error prevention
+        // Auth form handling
         const loginForm = document.getElementById('login-form');
         const signupForm = document.getElementById('signup-form');
         const googleLogin = document.getElementById('google-login');
@@ -108,7 +130,6 @@ class App {
                     return;
                 }
                 
-                // Show loading state
                 const submitBtn = loginForm.querySelector('button[type="submit"]');
                 const originalText = submitBtn.textContent;
                 submitBtn.textContent = 'Logging in...';
@@ -141,7 +162,6 @@ class App {
                     return;
                 }
                 
-                // Show loading state
                 const submitBtn = signupForm.querySelector('button[type="submit"]');
                 const originalText = submitBtn.textContent;
                 submitBtn.textContent = 'Creating account...';
@@ -174,8 +194,8 @@ class App {
                 await authManager.logout();
             });
         }
-
-        // Auth tab switching with animation
+        
+        // Auth tab switching
         document.querySelectorAll('.auth-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
@@ -193,8 +213,8 @@ class App {
                 }
             });
         });
-
-        // Mobile menu toggle with animation
+        
+        // Mobile menu toggle
         const mobileToggle = document.getElementById('mobile-menu-toggle');
         if (mobileToggle) {
             mobileToggle.addEventListener('click', () => {
@@ -209,13 +229,12 @@ class App {
                 }
             });
         }
-
-        // Notification bell with pulse animation
+        
+        // Notification bell
         const notificationBell = document.getElementById('notification-bell');
         if (notificationBell) {
             notificationBell.addEventListener('click', () => {
                 this.showNotifications();
-                // Remove pulse animation
                 notificationBell.classList.remove('pulse');
             });
         }
@@ -241,10 +260,11 @@ class App {
     }
 
     navigateTo(page) {
-        // Track navigation performance
         const navStart = performance.now();
         
-        // Update active states with animation
+        console.log('[App] Navigating to:', page);
+        
+        // Update active states
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
             if (item.dataset.page === page) {
@@ -265,24 +285,17 @@ class App {
         const targetPage = document.getElementById(`${page}-page`);
         if (targetPage) {
             targetPage.classList.add('active');
-            
-            // Animate page transition
             gsap.from(targetPage, {
                 opacity: 0,
                 y: 20,
                 duration: 0.4,
-                ease: 'power2.out',
-                onComplete: () => {
-                    // Log navigation performance
-                    const navTime = performance.now() - navStart;
-                    this.performanceMetrics.apiResponseTime.push(navTime);
-                }
+                ease: 'power2.out'
             });
         }
         
         this.currentPage = page;
         
-        // Initialize page-specific components with error handling
+        // Initialize page-specific components
         try {
             switch(page) {
                 case 'topology':
@@ -294,7 +307,6 @@ class App {
                     break;
                 case 'dashboard':
                     if (dashboardManager.refresh) dashboardManager.refresh();
-                    // Update real-time widgets
                     this.updateDashboardWidgets();
                     break;
                 case 'devices':
@@ -317,15 +329,15 @@ class App {
                     break;
             }
         } catch (error) {
-            console.error(`Error navigating to ${page}:`, error);
+            console.error(`[App] Error navigating to ${page}:`, error);
             this.showErrorPage(page, error);
         }
         
-        // Close mobile menu if open
+        // Close mobile menu
         const sidebar = document.querySelector('.sidebar');
         if (sidebar) sidebar.classList.remove('mobile-open');
         
-        // Update URL hash for deep linking
+        // Update URL hash
         window.location.hash = page;
     }
 
@@ -333,22 +345,17 @@ class App {
         const themeToggle = document.getElementById('theme-toggle');
         const savedTheme = localStorage.getItem('theme') || 'dark';
         document.body.classList.add(`${savedTheme}-mode`);
-        
-        // Update theme toggle icon
         this.updateThemeIcon(savedTheme);
         
         if (themeToggle) {
             themeToggle.addEventListener('click', () => {
                 const isDark = document.body.classList.contains('dark-mode');
                 const newTheme = isDark ? 'light' : 'dark';
-                
                 document.body.classList.remove(isDark ? 'dark-mode' : 'light-mode');
                 document.body.classList.add(`${newTheme}-mode`);
                 localStorage.setItem('theme', newTheme);
-                
                 this.updateThemeIcon(newTheme);
                 
-                // Animate theme change with smooth transition
                 gsap.to('body', {
                     duration: 0.3,
                     opacity: 0.95,
@@ -359,7 +366,6 @@ class App {
                     }
                 });
                 
-                // Log theme change
                 this.logAnalytics('theme_change', { theme: newTheme });
             });
         }
@@ -376,7 +382,6 @@ class App {
     }
 
     setupAdvancedFeatures() {
-        // Setup advanced features
         this.setupVoiceCommands();
         this.setupDragAndDropUpload();
         this.setupInfiniteScroll();
@@ -393,7 +398,6 @@ class App {
             this.recognition.interimResults = false;
             this.recognition.lang = 'en-US';
             
-            // Add voice command button to AI assistant
             const voiceBtn = document.createElement('button');
             voiceBtn.className = 'voice-command-btn';
             voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
@@ -416,7 +420,6 @@ class App {
             const chatInput = document.getElementById('chat-input');
             if (chatInput) {
                 chatInput.value = command;
-                // Auto-send if it's a command
                 if (command.toLowerCase().includes('analyze') || 
                     command.toLowerCase().includes('check') ||
                     command.toLowerCase().includes('show')) {
@@ -435,7 +438,6 @@ class App {
     }
 
     setupDragAndDropUpload() {
-        // Setup drag and drop for device configuration upload
         const devicesTable = document.getElementById('devices-table-container');
         if (devicesTable) {
             devicesTable.addEventListener('dragover', (e) => {
@@ -471,11 +473,9 @@ class App {
                 if (file.name.endsWith('.json')) {
                     config = JSON.parse(content);
                 } else {
-                    // Parse Cisco-style config
                     config = this.parseCiscoConfig(content);
                 }
                 
-                // Validate config
                 if (this.validateDeviceConfig(config)) {
                     await deviceManager.bulkImportDevices(config.devices);
                     authManager.showToast(`Successfully imported ${config.devices.length} devices`, 'success');
@@ -489,7 +489,6 @@ class App {
     }
 
     parseCiscoConfig(content) {
-        // Parse Cisco-style configuration
         const devices = [];
         const lines = content.split('\n');
         let currentDevice = null;
@@ -525,7 +524,6 @@ class App {
     }
 
     setupInfiniteScroll() {
-        // Setup infinite scroll for device list
         let loading = false;
         
         const deviceContainer = document.getElementById('devices-table-container');
@@ -543,49 +541,23 @@ class App {
     }
 
     setupWebSocketConnection() {
-        // Setup WebSocket for real-time updates (optional - use Firebase Realtime DB instead)
-        // Disabled WebSocket to avoid errors - using Firebase Realtime DB is more reliable
-        console.log('Using Firebase Realtime DB for real-time updates');
-        
-        // Optional: Add a custom WebSocket server if needed
-        // For now, we'll rely on Firebase
+        console.log('[App] Using Firebase Realtime DB for real-time updates');
         this.ws = null;
-    }
-
-    handleWebSocketMessage(data) {
-        // Only called if WebSocket is used
-        console.log('WebSocket message received:', data);
-    }
-
-    handleWebSocketMessage(data) {
-        switch(data.type) {
-            case 'device-update':
-                deviceManager.updateDeviceStatus(data.device);
-                break;
-            case 'alert':
-                this.showNotification(data.alert);
-                break;
-            case 'metric':
-                monitoringManager.updateMetric(data.metric);
-                break;
-        }
     }
 
     setupServiceWorker() {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').then(registration => {
-                console.log('ServiceWorker registration successful');
+                console.log('[App] ServiceWorker registration successful');
             }).catch(err => {
-                console.error('ServiceWorker registration failed:', err);
+                console.error('[App] ServiceWorker registration failed:', err);
             });
         }
     }
 
     setupAnalytics() {
-        // Setup analytics tracking
         this.trackPageView();
         
-        // Track user interactions
         document.addEventListener('click', (e) => {
             const target = e.target.closest('[data-track]');
             if (target) {
@@ -607,7 +579,6 @@ class App {
     }
 
     logAnalytics(event, data = {}) {
-        // Store in Firebase Analytics or local storage
         const analytics = JSON.parse(localStorage.getItem('analytics') || '[]');
         analytics.push({
             event,
@@ -615,21 +586,18 @@ class App {
             timestamp: Date.now()
         });
         
-        // Keep only last 1000 events
         if (analytics.length > 1000) analytics.shift();
         
         localStorage.setItem('analytics', JSON.stringify(analytics));
         
-        // Send to server if online
         if (navigator.onLine) {
-            // Could send to Firebase Analytics here
-            console.log('Analytics:', event, data);
+            console.log('[Analytics]', event, data);
         }
     }
 
     setupErrorBoundary() {
         window.addEventListener('error', (event) => {
-            console.error('Global error:', event.error);
+            console.error('[Global error]', event.error);
             this.logAnalytics('error', {
                 message: event.message,
                 filename: event.filename,
@@ -637,14 +605,13 @@ class App {
                 colno: event.colno
             });
             
-            // Show user-friendly error
             if (event.error?.message?.includes('Firebase')) {
                 authManager.showToast('Network connection issue. Using cached data.', 'warning');
             }
         });
         
         window.addEventListener('unhandledrejection', (event) => {
-            console.error('Unhandled rejection:', event.reason);
+            console.error('[Unhandled rejection]', event.reason);
             this.logAnalytics('unhandled_rejection', {
                 reason: event.reason?.message || 'Unknown'
             });
@@ -653,7 +620,6 @@ class App {
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + K - Focus AI Assistant
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
                 this.navigateTo('ai-assistant');
@@ -661,19 +627,16 @@ class App {
                 if (chatInput) chatInput.focus();
             }
             
-            // Ctrl/Cmd + D - Dashboard
             if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
                 e.preventDefault();
                 this.navigateTo('dashboard');
             }
             
-            // Ctrl/Cmd + T - Topology
             if ((e.ctrlKey || e.metaKey) && e.key === 't') {
                 e.preventDefault();
                 this.navigateTo('topology');
             }
             
-            // Escape - Close modals
             if (e.key === 'Escape') {
                 const modals = document.querySelectorAll('.modal.show');
                 modals.forEach(modal => {
@@ -681,7 +644,6 @@ class App {
                 });
             }
             
-            // Ctrl/Cmd + Shift + R - Generate Report
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
                 e.preventDefault();
                 if (reportGenerator.generatePDFReport) {
@@ -692,7 +654,6 @@ class App {
     }
 
     startPerformanceMonitoring() {
-        // Monitor memory usage
         if (performance.memory) {
             setInterval(() => {
                 this.performanceMetrics.memoryUsage.push({
@@ -701,9 +662,8 @@ class App {
                     timestamp: Date.now()
                 });
                 
-                // Alert if memory usage is high
                 if (performance.memory.usedJSHeapSize > 500 * 1024 * 1024) {
-                    console.warn('High memory usage detected');
+                    console.warn('[Performance] High memory usage detected');
                     this.showNotification('High memory usage detected. Consider refreshing the page.', 'warning');
                 }
             }, 30000);
@@ -711,53 +671,42 @@ class App {
     }
 
     initializeComponents() {
-        // Initialize components that don't require auth
         try {
+            // Initialize components that don't require auth
             if (networkIntel && networkIntel.setupEventListeners) {
                 networkIntel.setupEventListeners();
             }
         } catch (error) {
-            console.error('Error initializing network intel:', error);
+            console.error('[App] Error initializing components:', error);
         }
     }
 
     onUserLoggedIn(event) {
         const { user, role } = event.detail;
+        console.log('[App] User logged in event received:', user.email, 'Role:', role);
         
-        // Track login
         this.logAnalytics('user_login', {
             role: role,
             method: user.providerData[0]?.providerId || 'email'
         });
         
-        // Update UI for role with animation
+        // Update UI for role
         this.updateUIForRole(role);
         
         // Start real-time updates
         this.startRealTimeUpdates();
         
-        // Initialize all components that need auth with staggered loading
+        // Initialize all components that need auth
         setTimeout(() => {
             try {
-                // Initialize components in sequence to avoid overload
-                const initComponents = [
-                    () => dashboardManager.initialize && dashboardManager.initialize(),
-                    () => deviceManager.initialize && deviceManager.initialize(),
-                    () => monitoringManager.initialize && monitoringManager.initialize(),
-                    () => securityInsights.initialize && securityInsights.initialize(),
-                    () => reportGenerator.initialize && reportGenerator.initialize()
-                ];
+                console.log('[App] Initializing auth-dependent components...');
                 
-                let index = 0;
-                const initializeNext = () => {
-                    if (index < initComponents.length) {
-                        initComponents[index]();
-                        index++;
-                        setTimeout(initializeNext, 200);
-                    }
-                };
-                
-                initializeNext();
+                // Initialize components in sequence
+                if (dashboardManager.initialize) dashboardManager.initialize();
+                if (deviceManager.initialize) deviceManager.initialize();
+                if (monitoringManager.initialize) monitoringManager.initialize();
+                if (securityInsights.initialize) securityInsights.initialize();
+                if (reportGenerator.initialize) reportGenerator.initialize();
                 
                 // Load initial data
                 if (deviceManager.loadDevices) deviceManager.loadDevices();
@@ -766,19 +715,20 @@ class App {
                 // Load user preferences
                 this.loadUserPreferences();
                 
+                console.log('[App] Auth-dependent components initialized');
+                
             } catch (error) {
-                console.error('Error initializing components:', error);
+                console.error('[App] Error initializing auth components:', error);
             }
         }, 100);
         
-        // Show welcome toast with user name
+        // Show welcome toast
         setTimeout(() => {
             const welcomeMessage = role === 'admin' 
                 ? `Welcome back, Administrator ${user.displayName || 'User'}! You have full control.`
                 : `Welcome to NetworkPulse, ${user.displayName || 'User'}!`;
             authManager.showToast(welcomeMessage, 'success');
             
-            // Show role-specific tips
             if (role === 'admin') {
                 setTimeout(() => {
                     authManager.showToast('Admin Tip: You can manage all devices and user roles from the Device Management panel.', 'info');
@@ -814,7 +764,6 @@ class App {
     }
 
     updateUIForRole(role) {
-        // Hide admin-only features for non-admin users
         const adminOnlyElements = document.querySelectorAll('.admin-only');
         const isAdmin = role === 'admin';
         
@@ -827,7 +776,6 @@ class App {
             }
         });
         
-        // Network engineer permissions
         const isEngineer = role === 'network-engineer' || role === 'admin';
         document.querySelectorAll('.engineer-only').forEach(el => {
             if (isEngineer) {
@@ -838,14 +786,12 @@ class App {
             }
         });
         
-        // Show/hide based on role
         document.querySelectorAll(`.role-${role}`).forEach(el => {
             el.style.display = 'block';
         });
     }
 
     startRealTimeUpdates() {
-        // Listen for real-time network updates with better error handling
         try {
             const networkStatusRef = firebase.database().ref('networkStatus');
             const listener = networkStatusRef.on('value', (snapshot) => {
@@ -856,66 +802,37 @@ class App {
             });
             this.realtimeListeners.push({ ref: networkStatusRef, listener });
         } catch (error) {
-            console.error('Error setting up real-time updates:', error);
+            console.error('[App] Error setting up real-time updates:', error);
         }
         
-        // Check connection status periodically with visual feedback
         setInterval(() => {
             this.updateConnectionStatus();
-            this.checkFirebaseConnection();
         }, 5000);
         
-        // Monitor Firebase connection
         firebase.database().ref('.info/connected').on('value', (snap) => {
             if (snap.val() === true) {
-                console.log('Connected to Firebase');
+                console.log('[App] Connected to Firebase');
                 this.handleFirebaseReconnect();
             } else {
-                console.log('Disconnected from Firebase');
+                console.log('[App] Disconnected from Firebase');
             }
         });
     }
 
-    async checkFirebaseConnection() {
-        try {
-            const testRef = firebase.database().ref('.info/connected');
-            const snapshot = await testRef.once('value');
-            if (!snapshot.val()) {
-                console.warn('Firebase connection lost');
-                this.showOfflineIndicator();
-            }
-        } catch (error) {
-            console.error('Firebase connection check failed:', error);
-            this.showOfflineIndicator();
-        }
-    }
-
     handleFirebaseReconnect() {
-        // Resync data when reconnected
         if (offlineSync && offlineSync.syncData) {
             offlineSync.syncData();
         }
         
-        // Reload fresh data
         if (deviceManager.loadDevices) deviceManager.loadDevices();
         if (dashboardManager.refresh) dashboardManager.refresh();
         
         authManager.showToast('Reconnected to server. Syncing data...', 'success');
     }
 
-    showOfflineIndicator() {
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl && !statusEl.classList.contains('offline')) {
-            statusEl.classList.add('offline');
-            statusEl.innerHTML = '<i class="fas fa-wifi-slash"></i> Offline Mode';
-            authManager.showToast('You are offline. Using cached data.', 'warning');
-        }
-    }
-
     updateNetworkStatus(status) {
         const healthScore = document.getElementById('network-health');
         if (healthScore) {
-            // Animate score change
             const oldValue = parseInt(healthScore.textContent);
             gsap.to({ val: oldValue }, {
                 val: status.healthScore,
@@ -929,20 +846,7 @@ class App {
         const healthStatus = document.getElementById('health-status');
         if (healthStatus) {
             healthStatus.textContent = status.healthStatus;
-            // Update status color
             healthStatus.className = `health-status status-${status.healthStatus.toLowerCase()}`;
-        }
-        
-        // Update network health gauge if present
-        this.updateNetworkGauge(status.healthScore);
-    }
-
-    updateNetworkGauge(score) {
-        const gauge = document.getElementById('network-gauge');
-        if (gauge) {
-            const percentage = score;
-            const color = percentage > 80 ? '#00ff9d' : percentage > 60 ? '#ffd93d' : '#ff4757';
-            gauge.style.background = `conic-gradient(${color} 0deg ${percentage * 3.6}deg, #2c3e50 ${percentage * 3.6}deg 360deg)`;
         }
     }
 
@@ -999,15 +903,6 @@ class App {
                                                     <small class="text-muted">${this.formatTimeAgo(n.timestamp?.toDate())}</small>
                                                 </div>
                                                 <p>${n.message}</p>
-                                                ${n.actions ? `
-                                                    <div class="notification-actions mt-2">
-                                                        ${n.actions.map(action => `
-                                                            <button class="btn-sm btn-outline-primary me-2" data-action="${action.type}" data-id="${doc.id}">
-                                                                ${action.label}
-                                                            </button>
-                                                        `).join('')}
-                                                    </div>
-                                                ` : ''}
                                             </div>
                                         </div>
                                     `;
@@ -1016,7 +911,6 @@ class App {
                         </div>
                         <div class="modal-footer">
                             <button class="btn-secondary" data-bs-dismiss="modal">Close</button>
-                            ${!notifications.empty ? '<button id="mark-all-read" class="btn-primary">Mark All as Read</button>' : ''}
                         </div>
                     </div>
                 </div>
@@ -1025,48 +919,10 @@ class App {
             document.body.appendChild(modal);
             const modalInstance = new bootstrap.Modal(modal);
             modalInstance.show();
-            
-            // Handle mark all as read
-            const markAllBtn = document.getElementById('mark-all-read');
-            if (markAllBtn) {
-                markAllBtn.addEventListener('click', async () => {
-                    const batch = db.batch();
-                    notifications.forEach(doc => {
-                        batch.update(doc.ref, { read: true });
-                    });
-                    await batch.commit();
-                    modalInstance.hide();
-                    this.updateNotificationBadge(0);
-                    authManager.showToast('All notifications marked as read', 'success');
-                });
-            }
-            
-            // Handle action buttons
-            document.querySelectorAll('[data-action]').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const action = btn.dataset.action;
-                    const id = btn.dataset.id;
-                    await this.handleNotificationAction(action, id);
-                    modalInstance.hide();
-                });
-            });
-            
             modal.addEventListener('hidden.bs.modal', () => modal.remove());
             
-            // Mark notifications as read
-            if (!notifications.empty) {
-                const batch = db.batch();
-                notifications.forEach(doc => {
-                    if (!doc.data().read) {
-                        batch.update(doc.ref, { read: true });
-                    }
-                });
-                await batch.commit();
-                
-                this.updateNotificationBadge(0);
-            }
         } catch (error) {
-            console.error('Error loading notifications:', error);
+            console.error('[App] Error loading notifications:', error);
             authManager.showToast('Failed to load notifications', 'error');
         }
     }
@@ -1094,36 +950,7 @@ class App {
         return 'Just now';
     }
 
-    async handleNotificationAction(action, notificationId) {
-        switch(action) {
-            case 'view_device':
-                this.navigateTo('devices');
-                break;
-            case 'acknowledge_alert':
-                await db.collection('alerts').doc(notificationId).update({ acknowledged: true });
-                authManager.showToast('Alert acknowledged', 'success');
-                break;
-            case 'generate_report':
-                if (reportGenerator.generatePDFReport) reportGenerator.generatePDFReport();
-                break;
-        }
-    }
-
-    updateNotificationBadge(count) {
-        const badge = document.getElementById('notification-count');
-        if (badge) {
-            if (count > 0) {
-                badge.textContent = count > 99 ? '99+' : count;
-                badge.style.display = 'block';
-                badge.classList.add('pulse');
-            } else {
-                badge.style.display = 'none';
-            }
-        }
-    }
-
     initializeAIAssistant() {
-        // Preload AI suggestions based on current context
         if (aiAssistant && aiAssistant.getContextSuggestions) {
             const context = {
                 devices: deviceManager.devices,
@@ -1135,14 +962,12 @@ class App {
     }
 
     refreshNetworkIntel() {
-        // Refresh network intelligence data
         if (networkIntel && networkIntel.refreshData) {
             networkIntel.refreshData();
         }
     }
 
     updateDashboardWidgets() {
-        // Update all dashboard widgets with real-time data
         const widgets = document.querySelectorAll('.widget');
         widgets.forEach(widget => {
             gsap.from(widget, {
@@ -1180,31 +1005,31 @@ class App {
 
     handleOfflineStatus() {
         this.updateConnectionStatus();
-        this.showOfflineIndicator();
+        const statusEl = document.getElementById('connection-status');
+        if (statusEl && !statusEl.classList.contains('offline')) {
+            statusEl.classList.add('offline');
+            statusEl.innerHTML = '<i class="fas fa-wifi-slash"></i> Offline Mode';
+            authManager.showToast('You are offline. Using cached data.', 'warning');
+        }
     }
 
     cleanup() {
-        // Clean up all real-time listeners
         this.realtimeListeners.forEach(({ ref, listener }) => {
             if (ref && listener) {
                 ref.off('value', listener);
             }
         });
         
-        // Close WebSocket connection
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.close();
         }
         
-        // Stop monitoring
         if (monitoringManager && monitoringManager.stopMonitoring) {
             monitoringManager.stopMonitoring();
         }
         
-        // Save user preferences
         this.saveUserPreferences();
         
-        // Log session end
         this.logAnalytics('session_end', {
             duration: performance.now() - this.performanceMetrics.pageLoadTime
         });
@@ -1228,8 +1053,10 @@ class App {
         toastContainer.appendChild(toast);
         
         setTimeout(() => {
-            toast.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => toast.remove(), 300);
+            if (toast.parentNode) {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }
         }, 5000);
     }
 }
@@ -1242,393 +1069,3 @@ if (document.readyState === 'loading') {
 } else {
     window.app = new App();
 }
-
-// Add custom styles for new components
-const style = document.createElement('style');
-style.textContent = `
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        color: var(--text-secondary);
-    }
-    
-    .empty-state i {
-        font-size: 64px;
-        margin-bottom: 20px;
-        opacity: 0.5;
-    }
-    
-    .empty-state h3 {
-        font-size: 20px;
-        margin-bottom: 10px;
-    }
-    
-    .device-type-badge {
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
-    }
-    
-    .type-router { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
-    .type-switch { background: rgba(78, 205, 196, 0.2); color: #4ecdc4; }
-    .type-firewall { background: rgba(255, 217, 61, 0.2); color: #ffd93d; }
-    .type-server { background: rgba(108, 92, 231, 0.2); color: #6c5ce7; }
-    .type-client { background: rgba(168, 230, 207, 0.2); color: #a8e6cf; }
-    
-    .action-btn {
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        padding: 5px 10px;
-        transition: all 0.3s ease;
-    }
-    
-    .action-btn:hover {
-        color: var(--primary-color);
-        transform: scale(1.1);
-    }
-    
-    .form-group {
-        margin-bottom: 15px;
-    }
-    
-    .form-group label {
-        display: block;
-        margin-bottom: 5px;
-        font-size: 14px;
-        font-weight: 500;
-    }
-    
-    .detail-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--glass-border);
-    }
-    
-    .detail-label {
-        font-weight: 600;
-        color: var(--text-secondary);
-    }
-    
-    .detail-value {
-        color: var(--text-primary);
-    }
-    
-    .preview-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 12px;
-    }
-    
-    .preview-table th,
-    .preview-table td {
-        padding: 8px;
-        text-align: left;
-        border-bottom: 1px solid var(--glass-border);
-    }
-    
-    .result-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 10px;
-        margin-top: 10px;
-    }
-    
-    .result-item {
-        padding: 8px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 6px;
-    }
-    
-    .result-item strong {
-        display: block;
-        font-size: 11px;
-        color: var(--text-secondary);
-        margin-bottom: 4px;
-    }
-    
-    .result-item span {
-        font-size: 13px;
-        font-weight: 500;
-        word-break: break-all;
-    }
-    
-    .loading-spinner {
-        text-align: center;
-        padding: 20px;
-        color: var(--text-secondary);
-    }
-    
-    .error-message {
-        color: var(--danger-color);
-        padding: 10px;
-        background: rgba(255, 71, 87, 0.1);
-        border-radius: 6px;
-        text-align: center;
-    }
-    
-    .info-message {
-        color: var(--primary-color);
-        padding: 10px;
-        background: rgba(0, 212, 255, 0.1);
-        border-radius: 6px;
-        text-align: center;
-    }
-    
-    .security-event {
-        display: flex;
-        gap: 15px;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        background: rgba(255, 255, 255, 0.05);
-    }
-    
-    .severity-critical { border-left: 3px solid #ff4757; }
-    .severity-high { border-left: 3px solid #ff6b6b; }
-    .severity-medium { border-left: 3px solid #ffd93d; }
-    .severity-low { border-left: 3px solid #00ff9d; }
-    
-    .event-icon i {
-        font-size: 20px;
-    }
-    
-    .event-details {
-        flex: 1;
-    }
-    
-    .event-details p {
-        margin: 5px 0;
-        font-size: 13px;
-        color: var(--text-secondary);
-    }
-    
-    .event-details small {
-        font-size: 11px;
-        color: var(--text-secondary);
-    }
-    
-    .security-score {
-        margin: 15px 0;
-    }
-    
-    .score-bar {
-        height: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        overflow: hidden;
-        margin: 10px 0;
-    }
-    
-    .score-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #00ff9d, #00d4ff);
-        transition: width 0.5s ease;
-    }
-    
-    .alert-critical {
-        padding: 10px;
-        background: rgba(255, 71, 87, 0.2);
-        border-radius: 6px;
-        color: #ff4757;
-        margin-top: 10px;
-    }
-    
-    .alert-warning {
-        padding: 10px;
-        background: rgba(255, 217, 61, 0.2);
-        border-radius: 6px;
-        color: #ffd93d;
-    }
-    
-    .alert-success {
-        padding: 10px;
-        background: rgba(0, 255, 157, 0.2);
-        border-radius: 6px;
-        color: #00ff9d;
-    }
-    
-    .recommendations ul {
-        margin: 10px 0 0 20px;
-        font-size: 13px;
-        color: var(--text-secondary);
-    }
-    
-    .typing-indicator .message-content {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .typing-dots {
-        display: flex;
-        gap: 4px;
-    }
-    
-    .typing-dots span {
-        width: 8px;
-        height: 8px;
-        background: var(--primary-color);
-        border-radius: 50%;
-        animation: typing 1.4s infinite;
-    }
-    
-    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-    
-    @keyframes typing {
-        0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-        30% { transform: translateY(-10px); opacity: 1; }
-    }
-    
-    .typing-text {
-        font-size: 12px;
-        color: var(--text-secondary);
-    }
-    
-    .copy-message-btn {
-        position: absolute;
-        top: 5px;
-        right: 5px;
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    
-    .message:hover .copy-message-btn {
-        opacity: 1;
-    }
-    
-    .copy-message-btn:hover {
-        color: var(--primary-color);
-    }
-    
-    .voice-command-btn {
-        position: absolute;
-        right: 70px;
-        bottom: 25px;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-        border: none;
-        color: white;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        z-index: 10;
-    }
-    
-    .voice-command-btn:hover {
-        transform: scale(1.1);
-        box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
-    }
-    
-    .drag-over {
-        border: 2px dashed var(--primary-color);
-        background: rgba(0, 212, 255, 0.1);
-    }
-    
-    .error-page {
-        text-align: center;
-        padding: 60px 20px;
-        margin: 20px;
-    }
-    
-    .toast-close {
-        background: none;
-        border: none;
-        color: inherit;
-        font-size: 20px;
-        cursor: pointer;
-        margin-left: 10px;
-        opacity: 0.5;
-    }
-    
-    .toast-close:hover {
-        opacity: 1;
-    }
-    
-    .notification-actions {
-        display: flex;
-        gap: 8px;
-    }
-    
-    .badge {
-        display: inline-block;
-        padding: 0.25em 0.6em;
-        font-size: 0.75em;
-        font-weight: 700;
-        line-height: 1;
-        text-align: center;
-        white-space: nowrap;
-        vertical-align: baseline;
-        border-radius: 10rem;
-    }
-    
-    .bg-primary {
-        background: var(--primary-color);
-        color: #000;
-    }
-    
-    .health-status {
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    
-    .status-excellent {
-        background: rgba(0, 255, 157, 0.2);
-        color: #00ff9d;
-    }
-    
-    .status-degraded {
-        background: rgba(255, 217, 61, 0.2);
-        color: #ffd93d;
-    }
-    
-    .status-warning {
-        background: rgba(255, 107, 107, 0.2);
-        color: #ff6b6b;
-    }
-    
-    .status-critical {
-        background: rgba(255, 71, 87, 0.2);
-        color: #ff4757;
-    }
-    
-    @keyframes slideOut {
-        from {
-            opacity: 1;
-            transform: translateX(0);
-        }
-        to {
-            opacity: 0;
-            transform: translateX(100px);
-        }
-    }
-    
-    @keyframes pulse {
-        0% {
-            box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.7);
-        }
-        70% {
-            box-shadow: 0 0 0 10px rgba(0, 212, 255, 0);
-        }
-        100% {
-            box-shadow: 0 0 0 0 rgba(0, 212, 255, 0);
-        }
-    }
-    
-    .pulse {
-        animation: pulse 2s infinite;
-    }
-`;
-
-document.head.appendChild(style);

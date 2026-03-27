@@ -1,4 +1,4 @@
-// js/auth/auth.js - COMPLETE FIXED VERSION with proper redirect
+// js/auth/auth.js - COMPLETE FIXED VERSION
 import { auth, db, initDefaultData } from '../config/firebase-config.js';
 
 class AuthManager {
@@ -11,7 +11,7 @@ class AuthManager {
 
     setupAuthListener() {
         auth.onAuthStateChanged(async (user) => {
-            console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user');
+            console.log('[Auth] State changed:', user ? `User: ${user.email}` : 'No user');
             
             if (user) {
                 this.currentUser = user;
@@ -30,7 +30,7 @@ class AuthManager {
             const userDoc = await db.collection('users').doc(user.uid).get();
             if (userDoc.exists) {
                 this.userRole = userDoc.data().role || 'viewer';
-                console.log('User role loaded:', this.userRole);
+                console.log('[Auth] User role loaded:', this.userRole);
             } else {
                 const role = 'viewer';
                 await db.collection('users').doc(user.uid).set({
@@ -41,11 +41,11 @@ class AuthManager {
                     lastLogin: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 this.userRole = role;
-                console.log('New user profile created');
+                console.log('[Auth] New user profile created');
                 await initDefaultData(user.uid);
             }
         } catch (error) {
-            console.error('Error loading user profile:', error);
+            console.error('[Auth] Error loading user profile:', error);
             this.userRole = 'viewer';
         }
     }
@@ -56,7 +56,7 @@ class AuthManager {
             this.showToast('Login successful! Welcome back.', 'success');
             return result;
         } catch (error) {
-            console.error('Login error:', error);
+            console.error('[Auth] Login error:', error);
             this.showToast(this.getErrorMessage(error.code), 'error');
             throw error;
         }
@@ -70,7 +70,7 @@ class AuthManager {
             this.showToast('Google login successful!', 'success');
             return result;
         } catch (error) {
-            console.error('Google login error:', error);
+            console.error('[Auth] Google login error:', error);
             this.showToast(this.getErrorMessage(error.code), 'error');
             throw error;
         }
@@ -92,7 +92,7 @@ class AuthManager {
             this.showToast('Account created successfully!', 'success');
             return result;
         } catch (error) {
-            console.error('Signup error:', error);
+            console.error('[Auth] Signup error:', error);
             this.showToast(this.getSignupErrorMessage(error.code), 'error');
             throw error;
         }
@@ -124,30 +124,34 @@ class AuthManager {
         try {
             await auth.signOut();
             this.showToast('Logged out successfully', 'success');
+            this.onAuthFailure(); // Reset UI after logout
         } catch (error) {
             this.showToast('Error logging out', 'error');
         }
     }
 
     onAuthSuccess() {
-        console.log('onAuthSuccess called - User logged in:', this.currentUser?.email);
+        console.log('[Auth] onAuthSuccess called - User logged in:', this.currentUser?.email);
         
         // Get DOM elements
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
         const loadingOverlay = document.getElementById('loading-overlay');
         
-        // CRITICAL: Hide auth container, show app container
+        // CRITICAL: Hide auth container with multiple methods to ensure it works
         if (authContainer) {
             authContainer.style.display = 'none';
             authContainer.style.visibility = 'hidden';
             authContainer.style.opacity = '0';
+            authContainer.classList.add('hidden');
         }
         
+        // CRITICAL: Show app container
         if (appContainer) {
             appContainer.style.display = 'block';
             appContainer.style.visibility = 'visible';
             appContainer.style.opacity = '1';
+            appContainer.classList.remove('hidden');
         }
         
         if (loadingOverlay) {
@@ -168,33 +172,42 @@ class AuthManager {
             userRoleEl.textContent = this.userRole?.toUpperCase() || 'VIEWER';
         }
         
-        // Dispatch user logged in event for other components
+        // Dispatch user logged in event
         const event = new CustomEvent('userLoggedIn', { 
             detail: { user: this.currentUser, role: this.userRole } 
         });
         window.dispatchEvent(event);
         
-        // Force navigation to dashboard
+        // Force dashboard load with multiple attempts
         setTimeout(() => {
+            // Attempt 1: Use app.navigateTo
             if (window.app && typeof window.app.navigateTo === 'function') {
-                console.log('Navigating to dashboard via app.navigateTo');
+                console.log('[Auth] Navigating to dashboard via app.navigateTo');
                 window.app.navigateTo('dashboard');
-            } else if (window.location) {
-                console.log('Refreshing page to load dashboard');
-                window.location.reload();
             }
-        }, 100);
-        
-        // Also try to trigger dashboard refresh directly
-        setTimeout(() => {
+            
+            // Attempt 2: Direct dashboard refresh
             if (window.dashboardManager && typeof window.dashboardManager.refresh === 'function') {
+                console.log('[Auth] Refreshing dashboard directly');
                 window.dashboardManager.refresh();
             }
-        }, 200);
+            
+            // Attempt 3: Force page reload if nothing works (fallback)
+            setTimeout(() => {
+                const currentAuthDisplay = authContainer ? authContainer.style.display : 'unknown';
+                const currentAppDisplay = appContainer ? appContainer.style.display : 'unknown';
+                console.log('[Auth] After redirect - Auth display:', currentAuthDisplay, 'App display:', currentAppDisplay);
+                
+                if (appContainer && appContainer.style.display !== 'block') {
+                    console.log('[Auth] App container not visible, forcing reload');
+                    window.location.reload();
+                }
+            }, 500);
+        }, 100);
     }
 
     onAuthFailure() {
-        console.log('onAuthFailure called - No user logged in');
+        console.log('[Auth] onAuthFailure called - No user logged in');
         
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
@@ -205,11 +218,13 @@ class AuthManager {
             authContainer.style.display = 'flex';
             authContainer.style.visibility = 'visible';
             authContainer.style.opacity = '1';
+            authContainer.classList.remove('hidden');
         }
         
         // Hide app container
         if (appContainer) {
             appContainer.style.display = 'none';
+            appContainer.classList.add('hidden');
         }
         
         if (loadingOverlay) {
@@ -227,7 +242,7 @@ class AuthManager {
         if (loginTab) loginTab.classList.add('active');
         if (signupTab) signupTab.classList.remove('active');
         
-        // Clear any input values
+        // Clear input values
         const inputs = document.querySelectorAll('#login-form input, #signup-form input');
         inputs.forEach(input => {
             if (input) input.value = '';
