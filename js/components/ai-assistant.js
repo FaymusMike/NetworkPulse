@@ -1,15 +1,17 @@
-// js/components/ai-assistant.js - SECURE VERSION
-import { API_KEYS, isAPIConfigured, checkAPIAvailability } from '../config/api-keys.js';
+import { getAPIKey, isAPIConfigured, checkAPIAvailability } from '../config/api-keys.js';
 
 class AIAssistant {
     constructor() {
-        this.apiKey = API_KEYS.OPENROUTER_API_KEY;
+        // Use the new getAPIKey function
+        this.apiKey = getAPIKey('OPENROUTER_API_KEY');
         this.isConfigured = isAPIConfigured.openrouter;
         this.conversationHistory = [];
         this.isTyping = false;
         this.setupEventListeners();
         
         // Check API availability on startup
+        checkAPIAvailability();
+        
         if (!this.isConfigured) {
             console.warn('[AI] OpenRouter API key not configured. AI features will use demo mode.');
             this.addWelcomeDemoMessage();
