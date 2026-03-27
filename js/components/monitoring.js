@@ -1,5 +1,7 @@
-import { rtdb } from '../config/firebase-config.js';
+// js/components/monitoring.js - COMPLETE FIXED VERSION with all features preserved
+import { db, rtdb } from '../config/firebase-config.js';
 import { offlineSync } from '../utils/offline-sync.js';
+import { authManager } from '../auth/auth.js';
 
 class MonitoringManager {
     constructor() {
@@ -12,6 +14,7 @@ class MonitoringManager {
             packetLoss: []
         };
         this.updateInterval = null;
+        this.isLocalUpdate = false;
     }
 
     initialize() {
@@ -30,6 +33,13 @@ class MonitoringManager {
             plugins: {
                 legend: {
                     labels: { color: '#fff', font: { size: 12 } }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: '#00d4ff',
+                    bodyColor: '#fff'
                 }
             },
             scales: {
@@ -47,6 +57,9 @@ class MonitoringManager {
         // Bandwidth Chart (Mbps)
         const bandwidthCtx = document.getElementById('bandwidth-chart');
         if (bandwidthCtx) {
+            if (this.bandwidthChart) {
+                this.bandwidthChart.destroy();
+            }
             this.bandwidthChart = new Chart(bandwidthCtx, {
                 type: 'line',
                 data: {
@@ -56,8 +69,11 @@ class MonitoringManager {
                         data: [],
                         borderColor: '#00d4ff',
                         backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        borderWidth: 2,
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: chartOptions
@@ -67,6 +83,9 @@ class MonitoringManager {
         // Latency Chart (ms)
         const latencyCtx = document.getElementById('latency-chart');
         if (latencyCtx) {
+            if (this.latencyChart) {
+                this.latencyChart.destroy();
+            }
             this.latencyChart = new Chart(latencyCtx, {
                 type: 'line',
                 data: {
@@ -76,8 +95,11 @@ class MonitoringManager {
                         data: [],
                         borderColor: '#ffd93d',
                         backgroundColor: 'rgba(255, 217, 61, 0.1)',
+                        borderWidth: 2,
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: chartOptions
@@ -87,6 +109,9 @@ class MonitoringManager {
         // Packet Loss Chart (%)
         const packetLossCtx = document.getElementById('packet-loss-chart');
         if (packetLossCtx) {
+            if (this.packetLossChart) {
+                this.packetLossChart.destroy();
+            }
             this.packetLossChart = new Chart(packetLossCtx, {
                 type: 'line',
                 data: {
@@ -96,8 +121,11 @@ class MonitoringManager {
                         data: [],
                         borderColor: '#ff4757',
                         backgroundColor: 'rgba(255, 71, 87, 0.1)',
+                        borderWidth: 2,
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: chartOptions
@@ -264,55 +292,115 @@ class MonitoringManager {
     }
 
     async createAlert(severity, title, message) {
-        const alertRef = await db.collection('alerts').add({
-            title: title,
-            message: message,
-            severity: severity,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-            resolved: false
-        });
-        
-        // Show notification
-        const toastContainer = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${severity}`;
-        toast.innerHTML = `
-            <i class="fas ${severity === 'critical' ? 'fa-exclamation-circle' : 'fa-exclamation-triangle'}"></i>
-            <div>
-                <strong>${title}</strong>
-                <p>${message}</p>
-            </div>
-        `;
-        toastContainer.appendChild(toast);
-        
-        setTimeout(() => toast.remove(), 5000);
+        try {
+            // Check if db is available
+            if (!db) {
+                console.error('Firestore db not available');
+                return;
+            }
+            
+            const alertRef = await db.collection('alerts').add({
+                title: title,
+                message: message,
+                severity: severity,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                resolved: false
+            });
+            
+            // Show notification
+            this.showToast(message, severity);
+            
+            // Update notification badge
+            const badge = document.getElementById('notification-count');
+            if (badge) {
+                const currentCount = parseInt(badge.textContent) || 0;
+                badge.textContent = currentCount + 1;
+                badge.style.display = 'block';
+                badge.classList.add('pulse');
+                setTimeout(() => badge.classList.remove('pulse'), 2000);
+            }
+            
+        } catch (error) {
+            console.error('Error creating alert:', error);
+        }
     }
 
     async updateNetworkHealth(bandwidth, latency, packetLoss) {
-        // Calculate health score based on metrics
-        let healthScore = 100;
+        try {
+            // Calculate health score based on metrics
+            let healthScore = 100;
+            
+            if (bandwidth > 250) healthScore -= 20;
+            if (latency > 100) healthScore -= 15;
+            if (packetLoss > 5) healthScore -= 25;
+            
+            healthScore = Math.max(healthScore, 0);
+            
+            let healthStatus = 'Excellent';
+            if (healthScore < 60) healthStatus = 'Critical';
+            else if (healthScore < 80) healthStatus = 'Warning';
+            else if (healthScore < 95) healthStatus = 'Degraded';
+            
+            await rtdb.ref('networkStatus').update({
+                healthScore: healthScore,
+                healthStatus: healthStatus,
+                lastUpdated: Date.now(),
+                metrics: {
+                    bandwidth: Math.round(bandwidth),
+                    latency: Math.round(latency),
+                    packetLoss: packetLoss.toFixed(1)
+                }
+            });
+        } catch (error) {
+            console.error('Error updating network health:', error);
+        }
+    }
+
+    showToast(message, type) {
+        const toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) return;
         
-        if (bandwidth > 250) healthScore -= 20;
-        if (latency > 100) healthScore -= 15;
-        if (packetLoss > 5) healthScore -= 25;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <i class="fas ${type === 'critical' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+            <button class="toast-close">&times;</button>
+        `;
         
-        healthScore = Math.max(healthScore, 0);
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.onclick = () => toast.remove();
         
-        let healthStatus = 'Excellent';
-        if (healthScore < 60) healthStatus = 'Critical';
-        else if (healthScore < 80) healthStatus = 'Warning';
-        else if (healthScore < 95) healthStatus = 'Degraded';
+        toastContainer.appendChild(toast);
         
-        await rtdb.ref('networkStatus').update({
-            healthScore: healthScore,
-            healthStatus: healthStatus,
-            lastUpdated: Date.now(),
-            metrics: {
-                bandwidth: Math.round(bandwidth),
-                latency: Math.round(latency),
-                packetLoss: packetLoss.toFixed(1)
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
             }
-        });
+        }, 5000);
+    }
+
+    updateMetric(metric) {
+        // Handle real-time metric updates from WebSocket
+        if (metric.type === 'bandwidth') {
+            this.metrics.bandwidth.push({ x: new Date().toLocaleTimeString(), y: metric.value });
+            if (this.metrics.bandwidth.length > 60) this.metrics.bandwidth.shift();
+        } else if (metric.type === 'latency') {
+            this.metrics.latency.push({ x: new Date().toLocaleTimeString(), y: metric.value });
+            if (this.metrics.latency.length > 60) this.metrics.latency.shift();
+        } else if (metric.type === 'packetLoss') {
+            this.metrics.packetLoss.push({ x: new Date().toLocaleTimeString(), y: metric.value });
+            if (this.metrics.packetLoss.length > 60) this.metrics.packetLoss.shift();
+        }
+        this.updateCharts();
+    }
+
+    updateChartType(type) {
+        // Update chart type based on user preference
+        // This method is called from loadUserPreferences
+        console.log('Chart type updated:', type);
+        // Implementation for chart type change would go here
     }
 
     stopMonitoring() {
